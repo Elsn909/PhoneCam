@@ -1,0 +1,4 @@
+# Les .bat gardent leurs fins de ligne Windows (CRLF), même dans le zip de GitHub.
+*.bat -text
+*.apk binary
+*.whl binary

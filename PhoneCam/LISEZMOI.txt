@@ -1,0 +1,235 @@
+PHONECAM STUDIO
+Direct : webcam du PC ou caméra du téléphone → remplacement du visage → retouches → effets → caméra virtuelle
+Studio : les mêmes outils sur des vidéos importées, en qualité maximale
+Moteur Plus : les modèles de FaceFusion (HyperSwap, HRFFA, LivePortrait, XSeg, BiSeNet).
+Réglage conseillé : Moteur Plus, HyperSwap 1a, repères HRFFA (voir MOTEUR PLUS et ANTI-FUITE).
+==========================================================================
+
+LANCER
+  Double-clic sur « Lancer PhoneCam.bat ». Les réglages sont mémorisés à la fermeture
+  (PhoneCam\data\settings.json).
+
+INTERFACE
+  En haut : Direct et Studio, la recherche, les quatre voyants (source vidéo, moteur, caméra, micro :
+  un clic ouvre leur page), les presets, annuler / rétablir, l'aide.
+  À gauche, un rail d'icônes choisit la page ; chaque page a ses petits onglets et ses cartes.
+  Direct : Favoris, Presets, Visage, Moteur, Retouche, Webcam, Ambiance, Sortie, Micro, Connexion, Diagnostic.
+  Studio : Favoris, Presets, Médias, Visages, Suivi, Moteur, Retouche, Webcam, Ambiance, Couleur, Export.
+  Sous l'aperçu du Direct : Remplacement, Moteur Plus, Caméra virtuelle, Micro, puis pause, image
+  coupée, aperçu, comparaison, grille, photo, enregistrement, plein écran, panneau.
+
+  Curseurs : le nom et la valeur sont dans la barre. Glisser n'importe où (Maj : réglage fin), pas de
+  saut au clic. Double-clic : valeur d'origine. Clic droit : valeur d'origine, saisir une valeur,
+  ajouter aux favoris. Orange : réglage modifié. « Réinitialiser » remet toute la carte.
+  Recherche (Ctrl+K) : tous les réglages des deux espaces et toutes les actions, sans se soucier des
+  accents. Choisir un réglage ouvre sa page et le fait clignoter.
+  Annuler (Ctrl+Z) et rétablir (Ctrl+Y) : un preset entier compte pour une seule étape.
+  Favoris : clic droit sur un réglage. Ils restent liés au vrai réglage, dans les deux sens.
+  Visages : glisser une photo dans la fenêtre ; les visages récents s'échangent d'un clic.
+  Comparer (F10) : l'image reçue à côté du rendu, le trait se déplace à la souris. Seulement
+  dans l'aperçu, jamais sur la caméra virtuelle. Molette sur l'image : zoom, double-clic : image entière.
+  Diagnostic : latence, temps par étape, charge de la carte graphique, journal d'erreurs.
+
+  Raccourcis : F1 aide, F3 pause, F4 couper l'image, F5 caméra virtuelle, F6 micro, F7 remplacement,
+  F8 photo, F9 enregistrer, F10 comparer, F11 plein écran, Ctrl+B panneau, Ctrl+P aperçu,
+  Ctrl+1 / Ctrl+2 Direct / Studio. Studio : Espace ou K lecture, I / O début et fin, ← → une image,
+  Maj+← → ou J / L une seconde, Début / Fin bouts de la zone.
+
+PRESETS
+  Page Presets, ou l'icône en haut pour changer d'un clic : des profils (par exemple « Visage 1 »), et
+  dans chacun plusieurs presets (« Clean », « Effet Webcam »…) qui règlent d'un coup les branches
+  choisies : Visage, Moteur, Retouche, Webcam, Ambiance, Sortie, Micro. Les autres ne bougent pas.
+  La même page existe dans le Direct et le Studio : les presets sont communs et s'appliquent aux deux
+  espaces (Sortie, Micro, anti-fuite et stabilité : Direct seulement). Un preset choisi dans le Studio
+  change donc aussi le Direct en cours. La disquette remplace un preset par les réglages actuels.
+  Les pages gardent en plus leurs modèles fournis (Naturel, Glamour…).
+
+SOURCE VIDÉO : WEBCAM DU PC OU TÉLÉPHONE
+  Page « Connexion » → « Source vidéo » : Téléphone ou Webcam du PC, l'un ou l'autre.
+  Webcam du PC : choisir la webcam et la résolution (720p conseillé), elle démarre seule et
+  repart seule au prochain lancement. Débranchée ou prise par un autre logiciel : PhoneCam
+  réessaie toutes les 2 s. « Actualiser la liste » après avoir branché une webcam.
+  Les caméras virtuelles (OBS Virtual Camera…) ne sont pas proposées : c'est la sortie de PhoneCam.
+  Avec la webcam, les images d'un téléphone connecté sont ignorées (son micro marche toujours).
+
+CAMÉRA VIRTUELLE (page Sortie)
+  PhoneCam envoie l'image dans « OBS Virtual Camera » (OBS Studio installé, pas besoin de l'ouvrir).
+  Dans l'autre logiciel (Snapchat, Discord, Teams, OBS…), choisir cette caméra.
+  Cadrage : zoom jusqu'à ×4, position, suivi du visage, « Recentrer ».
+  Captures : vidéo de 10 s à 5 min, photo, dossier PhoneCam\data\captures.
+
+STUDIO : VIDÉOS IMPORTÉES (720p à 4K)
+  Tout ce que lit FFmpeg : MP4, MOV, MKV, AVI, WebM, ProRes, H.264, H.265, AV1… Les vidéos
+  verticales et le son sont gérés ; le HDR est ramené en SDR. Le fichier d'origine n'est jamais
+  modifié. FFmpeg doit être installé sur le PC.
+  Les images aussi (PNG, JPEG, WebP, BMP, TIFF) : mêmes réglages, export en PNG ou JPEG.
+  Rien n'est chargé à l'ouverture du Studio : la vidéo d'origine s'affiche. Le bouton « Lancer »
+  charge les modèles et affiche le rendu, « Arrêter » les libère (environ 2,5 Go de mémoire
+  graphique). Analyser, Lecture et Exporter marchent sans lui.
+  1. Importer : bouton + ou glisser des vidéos dans la fenêtre.
+  2. Visages : choisir la ou les photos à appliquer (« Comme le direct » reprend celles du Direct).
+  3. Analyser la vidéo (fait aussi automatiquement à l'export). La frise montre alors qui est
+     présent et quand, et les changements de plan. Dans Visages, chaque personne peut être
+     remplacée, laissée telle quelle ou recevoir un autre visage. Une analyse est gardée dans
+     data\studio-cache (supprimable sans risque).
+  4. Régler : Moteur, Retouche, Webcam, Ambiance, Couleur. La visionneuse montre l'image choisie
+     avec tous les réglages (Rendu, Original, ou Avant / après).
+     Lecture : calcule le rendu (720p, léger) en le montrant, puis le rejoue en continu tant que
+     les réglages ne changent pas (trait vert sur la frise). En mode Original : la vidéo d'origine.
+  5. Couper le début et la fin : glisser les deux poignées de la frise, ou « Début ici » et « Fin ici »
+     à la position actuelle (touches I et O). « Tout garder » annule.
+  6. Exporter : le rendu rejoint la file (page Export), qui traite une vidéo après l'autre.
+     Format et cadrage : d'origine, 16:9, 9:16, 1:1 ou 4:5 ; remplir, bandes noires ou fond
+     flouté ; zoom et position. « Suivre le visage » garde la personne dans le cadre, en douceur.
+     La résolution choisie est le petit côté : 1080p en 9:16 donne 1080 × 1920.
+  Ce qui est meilleur que le direct :
+   - Suivi : chaque image à pleine résolution, recherche ciblée quand un visage est perdu,
+     lissage dans les deux sens du temps (aucun retard).
+   - Visage généré : résolution adaptée à sa taille (jusqu'à 1024 px), GFPGAN ou GPEN 512 en option.
+   - Couleur : étalonnage complet (lumière, roues de couleur, LUT .cube, ambiances, netteté,
+     lueur, vignettage, grain), appliqué à pleine résolution sur la carte graphique.
+   - Export : H.264, H.265, AV1 (carte graphique), x264, x265 (processeur), ProRes 422 HQ.
+
+TÉLÉPHONE ANDROID (facultatif)
+  Appli « PhoneCam » (PhoneCam.apk, Android 9 ou plus récent) : continue en arrière-plan et écran
+  éteint. Câble : « Connecter par câble » sur le PC ouvre l'appli et démarre l'envoi. Wi-Fi :
+  scanner le QR code, puis « Ouvrir dans l'appli PhoneCam ». Ensuite l'appli se souvient du PC et
+  se reconnecte seule (bouton Démarrer). Sans l'appli, la page du QR code marche dans Chrome.
+  Caméra en H.264 matériel, micro traité (comme un appel) ou brut, image redressée selon la façon
+  dont on tient le téléphone. En Wi-Fi, la liaison est chiffrée et n'accepte que ce PC.
+  Si l'envoi s'arrête écran éteint : dans l'appli, toucher la ligne ⚡ (batterie non limitée).
+  Micro : « Appel » (proche), « Haut-parleur » (capte plus loin), « Vidéo » (tous les micros,
+  son naturel), « Brut » ; gain de +6 à +18 dB.
+  Chauffe : l'écran de l'appli est limité à 60 Hz ; « Éco » (onglet Caméra) passe à 24 img/s et
+  baisse le débit ; si le téléphone devient chaud, l'appli le fait d'elle-même (état 🌡).
+  Recompiler l'appli : code source dans PhoneCam\android (Android Studio, ou JDK 17 + SDK Android 35
+  avec « gradle assembleDebug »).
+
+CONNEXION PAR CÂBLE USB (la plus fluide)
+  Une seule fois sur le téléphone :
+    Paramètres → À propos du téléphone → Informations sur le logiciel →
+    toucher 7 fois « Numéro de version », puis
+    Paramètres → Options pour les développeurs → activer « Débogage USB ».
+  Ensuite : brancher le câble, page « Connexion » → « Connecter par câble ».
+  La première fois, accepter « Autoriser le débogage USB ? » sur le téléphone (cocher
+  « Toujours autoriser »), puis recliquer sur « Connecter ».
+  Le câble passe par « adb reverse » : le serveur n'écoute que sur le PC lui-même (127.0.0.1),
+  rien n'est exposé sur le réseau, pas de règle de pare-feu ni d'avertissement de certificat.
+
+CONNEXION WI-FI
+  Le réseau du PC doit être en profil « Privé » (Paramètres → Réseau et Internet →
+  Wi-Fi ou Ethernet → Type de profil réseau → Privé). Scanner le QR code, accepter
+  l'avertissement de certificat (il est généré localement par PhoneCam).
+  Si ça bloque : Sécurité Windows → Pare-feu → Autoriser une application → « python » → « Privé ».
+  Le lien contient un jeton aléatoire (PhoneCam\data\token.txt) : un autre appareil ne peut pas
+  envoyer d'images sans lui. Supprimer ce fichier en crée un nouveau (il faudra ré-appairer l'appli).
+
+APPELS SNAPCHAT DEPUIS L'APPLI (onglet Appel)
+  Les chats se font sur le PC, dans un Edge séparé (profil PhoneCam\data\snap-browser). Première
+  fois : s'y connecter à Snapchat, puis choisir la caméra « OBS Virtual Camera » et le micro
+  « CABLE-B Output » dans ses réglages. Garder la caméra virtuelle et le micro démarrés, et cette
+  fenêtre ouverte. Les fenêtres privées d'Edge sont ignorées.
+  Dans l'appli : contacts, appels audio ou vidéo, appel entrant (décrocher ou refuser), et en appel :
+  caméra, micro coupé, volume, choix du micro, filtres Snapchat, raccrocher, caméra avant / arrière.
+  Bouton Paramètres : zoom de la sortie, pièce sombre, blush, anti-fuite (les réglages du PC).
+  Sortie conseillée en 1280×720 avec « Ajuster (bandes noires) » : Snapchat garde le centre d'une
+  image verticale.
+  Seules les actions demandées depuis l'appli sont faites (pas d'automatisation).
+
+PAGES DU DIRECT
+  Visage     : photo, récents, photos en plus, un visage / tous / par personne (avec seuil de
+               reconnaissance). Plusieurs photos variées de la même personne (3 à 10) donnent une
+               identité plus fidèle et plus stable ; une photo d'une autre personne est écartée.
+  Moteur     : Base (remplacement, modèle, rendu, opacité, netteté, miroir, Fix Blueish Cam),
+               Qualité (pixel boost, ressemblance, expressions, GFPGAN, GPEN), Masque (XSeg, zones
+               remplacées, bords), Stabilité (cadrage, charge, détection), Anti-fuite, Origine
+               (Poisson blend, Mouth mask).
+  Retouche   : façon Instagram / TikTok, de −100 à +100 pour la forme : Visage, Yeux, Bouche, Corps.
+               De 0 à 100 : Peau (lissage, éclat, cernes, hâle, taches de rousseur, contouring,
+               highlighter, blush, rouge à lèvres, dents) et Regard (couleur des yeux, fard,
+               eyeliner, sourcils). Modèles : Naturel, Glamour, Poupée, Yeux de chat, Silhouette,
+               Caricature, Bonne mine, Soirée, Été, Regard clair.
+               « Ne déformer que la personne » : seul le corps est déformé, le décor reste droit.
+  Webcam     : rendu « vraie webcam / visio » : Flux (résolution, compression, débit), Capteur
+               (flou, bruit, dérive, flou de bougé, vignettage), Temps (latence, gigue, cadence).
+  Ambiance   : lumière chaude ou froide, ampoule RGB, pièce sombre, exposition, contraste,
+               saturation, et des ambiances toutes prêtes.
+  Sortie     : caméra virtuelle, résolution, cadrage, captures.
+
+MOTEUR PLUS (page Moteur) : FaceFusion, plus réaliste, suit mieux les expressions et le profil
+  Remplace le collage de Deep-Live-Cam par les modèles de FaceFusion. Pour chaque visage :
+   - modèle au choix : HyperSwap 1a / 1b / 1c (256 px, FaceFusion ; 1a = le plus naturel,
+     conseillé) ou inswapper 128 (celui de Deep-Live-Cam : ressemblance maximale) ;
+   - « Suivi des expressions » (LivePortrait) : l'expression réelle (bouche, sourire, sourcils,
+     regard) est réappliquée au visage généré ;
+   - « Garder devant le visage ce qui le cache » (XSeg) : une main, un micro, un verre restent devant ;
+   - « Contour précis » (BiSeNet) : collé sur le visage seul, sans cheveux ni décor ;
+   - couleur, lumière, grain et netteté accordés à l'image filmée.
+  « Stabilisation de profil » : de profil ou tête levée, le cadre du visage est lissé. De face, rien
+  ne change.
+  « Visage manqué une ou deux images : garder le précédent » : au lieu de laisser passer le vrai
+  visage, le moteur garde la position précédente, au plus 2 images de suite.
+  Mouth mask et Poisson Blend ne s'appliquent pas en mode Plus ; GFPGAN / GPEN oui.
+  Le 1er lancement prépare des moteurs TensorRT pour la carte graphique (data\models-plus\trt-cache) :
+  quelques minutes, une seule fois, pendant lesquelles le collage d'origine continue.
+  Réglages avancés (repliés, repris de FaceFusion ; leurs valeurs de départ ne changent rien) :
+   - Pixel boost 512 px : peau et détails plus fins (~+15 ms par image). 768 px : trop lent en direct.
+   - Détecteur d'occlusion : XSeg 1 (conseillé), 2 ou 3. Avec XSeg 2 et 3, une langue tirée peut
+     « glitcher ».
+   - XSeg et moustache : « ignorer les petites taches » (commencer vers 8 %), « stabilité du masque »,
+     « seuil de détection ».
+   - Repères du visage : détecteur InsightFace (d'origine) ou HRFFA, qui tient mieux de profil.
+   - Ressemblance à la photo, zones remplacées (garder les vraies dents, le vrai regard…),
+     expressions du haut / du bas, marge et fondu du bord.
+
+ANTI-FUITE (page Moteur)
+  Quand la détection rate (visage tourné, caché, flou), l'image d'origine montrerait le vrai visage.
+  La garde retient quelques images (« Anticipation », 2 par défaut ≈ 66 ms de délai en plus) : une
+  image ne sort que si elle et les suivantes sont bien remplacées, sinon la dernière image sûre est
+  répétée. Au retour du visage, il faut le même nombre d'images correctes avant de repartir.
+  Image jugée risquée : aucun visage remplacé, confiance de détection sous le seuil (« Confiance
+  minimale », 55 % conseillé), ou un visage de moins que juste avant.
+  « Surveiller la tête qui tourne vite » : les repères du détecteur sont comparés à ceux de HRFFA ;
+  quand ils se contredisent, l'image se fige plus tôt.
+  « Assouplir les masques quand la tête bouge vite » : XSeg et le masque du modèle sont relâchés le
+  temps d'un mouvement rapide, pour ne pas montrer le vrai visage par les trous du masque. Une main
+  devant le visage peut alors être recouverte.
+  Après le « Gel maximal » : rester figé, image noire, ou laisser passer. Au lancement, tant qu'aucun
+  visage n'a été remplacé, l'image est noire (sauf « laisser passer »).
+  Réglage conseillé en mouvement : repères HRFFA, modèle HyperSwap, lissage temporel coupé,
+  anti-fuite actif, « Ensuite » sur « Rester figé ». Défauts possibles à l'extrême (tête très levée,
+  profil parfait) : limite des modèles actuels.
+  Capture de diagnostic (page Diagnostic) : 15 s de l'image rendue (jamais l'image reçue), avec les
+  valeurs du moteur, dans data\captures.
+
+MICRO (page Micro) : voix de smartphone simulée en temps réel
+  Il faut VB-Cable A+B (https://vb-audio.com/Cable).
+  Entrée (ex. « CABLE-A Output », ou directement un micro) → simulation → sortie (ex. « CABLE-B Input ») ;
+  dans l'autre logiciel, choisir « CABLE-B Output » comme micro.
+  « Écoute de contrôle » : pour s'entendre sur un casque ou les haut-parleurs.
+  Chaîne simulée : chambre (réverbération) → bruits de fond aléatoires → micro du téléphone →
+  traitement d'appel (réduction de bruit, gain automatique, timbre) → codec (3G, 4G HD, VoLTE,
+  WhatsApp, Discord, mémo vocal ; pertes de paquets) → limiteur.
+  « Son brut » compare sans la simulation. « Retard ajouté » et « Ajouter la latence de la vidéo »
+  recalent la voix sur l'image. Micro Bluetooth (limité à 8 kHz) : « Recréer les aigus ».
+  Micro du téléphone comme micro du PC : sur le téléphone, activer « Micro » puis Démarrer ; sur le
+  PC, entrée « Micro du téléphone (PhoneCam) », sortie « CABLE-B Input ».
+
+ÉCONOMISER LA CARTE GRAPHIQUE
+  « Images/s traitées par l'IA » (Moteur → Stabilité) : les images en trop ne sont pas traitées du
+  tout (par exemple 16 img/s : bien moins de charge, mouvement un peu moins fluide).
+  « Expression » à 0 retire le plus gros calcul. Les effets limitent déjà la sortie à leur propre
+  cadence : traiter plus d'images ne sert à rien.
+
+IMAGE FIGÉE, CARTE GRAPHIQUE
+  Si le pilote graphique se réinitialise (erreur 141 dans Windows), le moteur perd la carte. La
+  sortie garde alors la dernière image (jamais le vrai visage) et, après 8 secondes sans image
+  rendue, PhoneCam redémarre seul ; le téléphone se reconnecte tout seul.
+  Les erreurs sont notées dans PhoneCam\data\phonecam-errors.log.
+
+DÉSINSTALLER
+  Supprimer le dossier de PhoneCam. Restent hors du dossier, à retirer à la main si voulu :
+   - Python 3.12, OBS Studio et ffmpeg (Paramètres → Applications) ;
+   - les règles du pare-feu Windows pour python (Wi-Fi) ;
+   - sur le téléphone : Options pour les développeurs → « Révoquer les autorisations de
+     débogage USB », puis désactiver les options pour les développeurs.

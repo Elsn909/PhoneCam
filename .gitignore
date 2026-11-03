@@ -1,0 +1,13 @@
+# Créés par Installer.bat ou au lancement : jamais dans le dépôt.
+venv/
+data/
+tools/
+app/models/*.onnx
+app/media/
+PhoneCam/data/
+PhoneCam/android/build/
+PhoneCam/android/app/build/
+PhoneCam/android/.gradle/
+__pycache__/
+*.pyc
+*.part
