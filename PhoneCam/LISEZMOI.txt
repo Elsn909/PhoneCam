@@ -36,8 +36,12 @@ INTERFACE
   Maj+← → ou J / L une seconde, Début / Fin bouts de la zone.
 
 PRESETS
+  Fournis : « Par défaut » (moteur Plus réglé, retouches, webcam et ambiance neutres), toujours en tête
+  de la liste, ni modifiable ni supprimable, et appliqué au premier lancement ; « Visage Finnyzyy »
+  (profil « Visage 1 ») : moteur, retouches, effet webcam et ambiance. La photo du visage n'est dans
+  aucun preset fourni : la choisir dans la page Visage, puis la disquette pour la garder dans un preset.
   Page Presets, ou l'icône en haut pour changer d'un clic : des profils (par exemple « Visage 1 »), et
-  dans chacun plusieurs presets (« Clean », « Effet Webcam »…) qui règlent d'un coup les branches
+  dans chacun plusieurs presets qui règlent d'un coup les branches
   choisies : Visage, Moteur, Retouche, Webcam, Ambiance, Sortie, Micro. Les autres ne bougent pas.
   La même page existe dans le Direct et le Studio : les presets sont communs et s'appliquent aux deux
   espaces (Sortie, Micro, anti-fuite et stabilité : Direct seulement). Un preset choisi dans le Studio

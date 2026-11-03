@@ -1,20 +1,29 @@
-"""Page Presets : des profils (« Visage 1 »), et dans chacun plusieurs presets (« Clean », « Effet Webcam »).
+"""Page Presets : des profils (« Visage 1 »), et dans chacun plusieurs presets (« Visage Finnyzyy »…).
 La même page dans le Direct et le Studio : les presets sont communs et s'appliquent aux deux espaces.
 
 Un preset garde plusieurs branches d'un coup : un dictionnaire {branche: {réglage: valeur}} dans
 settings["preset_groups"][profil][preset]. Seules les branches gardées changent quand on l'applique.
-Webcam et Ambiance sont des branches séparées, mais partagent le panneau « effets »."""
-from PySide6.QtCore import Qt
+Webcam et Ambiance sont des branches séparées, mais partagent le panneau « effets ».
+
+Presets fournis (presets_fournis.json) : « Par défaut », en tête de chaque profil, ni modifiable ni
+supprimable, et appliqué au premier lancement ; les autres sont rangés dans « Visage 1 » au premier lancement."""
+import json
+import os
+
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                                QMessageBox, QPushButton, QSizePolicy, QVBoxLayout, QWidget)
 
-from effects import DEFAULTS as EFFECT_DEFAULTS
 from ui_kit import icon, note
 
 SECTIONS = (("visage", "Visage"), ("dlc", "Moteur"), ("filtres", "Retouche"), ("webcam", "Webcam"), ("ambiance", "Ambiance"),
             ("sortie", "Sortie"), ("micro", "Micro"))
 LOOK = ("visage", "dlc", "filtres", "webcam", "ambiance")   # branches cochées pour un nouveau preset
 OLD_GROUP = "Anciens préréglages"
+FIRST_GROUP = "Visage 1"
+DEFAULT = "Par défaut"
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "presets_fournis.json"), encoding="utf-8") as _f:
+    BUILTIN = json.load(_f)
 
 
 def _effects(values):
@@ -30,16 +39,13 @@ def split(shot):
     return out
 
 
-def seed(settings, shot):
-    """Au premier lancement : « Visage 1 » depuis l'état actuel, et les préréglages par branche d'avant
-    rangés dans leur propre profil, pour n'en perdre aucun."""
+def seed(settings):
+    """Au premier lancement : « Visage 1 » avec les presets fournis, et les préréglages par branche
+    d'avant rangés dans leur propre profil, pour n'en perdre aucun."""
     if "preset_groups" in settings:
         return settings["preset_groups"]
     groups = settings["preset_groups"] = {}
-    now = split(shot)
-    effect = {k: now[k] for k in LOOK}
-    webcam, ambiance = _effects(EFFECT_DEFAULTS)
-    groups["Visage 1"] = {"Clean": dict(effect, webcam=webcam, ambiance=ambiance), "Effet Webcam": effect}
+    groups[FIRST_GROUP] = {name: preset for name, preset in BUILTIN.items() if name != DEFAULT}
     titles = dict(SECTIONS)
     old = {}
     for panel, saved in settings.get("user_presets", {}).items():
@@ -86,17 +92,29 @@ class PresetHub:
     def __init__(self, settings, live, studio):
         self.live = live
         self.spaces = (live, studio)
-        self.groups = seed(settings, live.shot_all())
+        first = "preset_groups" not in settings
+        self.groups = seed(settings)
         self.active = settings.setdefault("preset_active", [])
         self.views = []
         for space in self.spaces:
             view = PresetsPanel(self, space)
             space.presets_form.addRow(view)
             self.views.append(view)
+        if first:       # une installation neuve démarre sur « Par défaut »
+            QTimer.singleShot(0, lambda: self.apply(FIRST_GROUP, DEFAULT))
+
+    def names(self, group):
+        return [DEFAULT] + list(self.groups.get(group, {}))
+
+    def get(self, group, name):
+        return BUILTIN[DEFAULT] if name == DEFAULT else self.groups[group][name]
+
+    def apply_default(self):
+        self.apply(self.views[0].group() if self.views else "", DEFAULT)
 
     def apply(self, group, name):
         for space in self.spaces:
-            space.load_preset(self.groups[group][name])
+            space.load_preset(self.get(group, name))
         self.active[:] = [group, name]
         self.refresh(group)
         self.changed()
@@ -179,7 +197,8 @@ class PresetsPanel(QWidget):
                 w.setParent(None)
                 w.deleteLater()
         group = self.group()
-        for name, preset in self.groups.get(group, {}).items():
+        for name in self.hub.names(group):
+            preset = self.hub.get(group, name)
             row = QWidget()
             h = QHBoxLayout(row)
             h.setContentsMargins(0, 0, 0, 0)
@@ -191,6 +210,12 @@ class PresetsPanel(QWidget):
             apply_btn.setStyleSheet("text-align: left; padding-left: 10px;" + ("font-weight: 600;" if on else ""))
             apply_btn.clicked.connect(lambda _c=False, n=name: self.hub.apply(group, n))
             h.addWidget(apply_btn, 1)
+            if name == DEFAULT:
+                lock = self._tool("lock", "Preset fourni : toujours là, ni modifiable ni supprimable", lambda: None)
+                lock.setEnabled(False)
+                h.addWidget(lock)
+                self.rows.addWidget(row)
+                continue
             h.addWidget(self._tool("save", "Remplacer par les réglages actuels", lambda n=name: self.update_preset(n)))
             h.addWidget(self._tool("pencil", "Renommer", lambda n=name: self.rename_preset(n)))
             h.addWidget(self._tool("trash", "Supprimer", lambda n=name: self.drop_preset(n)))
@@ -245,6 +270,9 @@ class PresetsPanel(QWidget):
         name = box.name.text().strip()
         if not name or not box.sections():
             return
+        if name == DEFAULT:
+            QMessageBox.information(self.window(), "Preset", f"« {DEFAULT} » est réservé : choisis un autre nom.")
+            return
         if name in self.groups[group] and QMessageBox.question(self.window(), "Preset", f"Remplacer « {name} » ?") != QMessageBox.Yes:
             return
         now = self.hub.snapshot(self.space)
@@ -272,7 +300,7 @@ class PresetsPanel(QWidget):
     def rename_preset(self, old):
         group = self.group()
         name = self._ask("Preset", "Nouveau nom :", old)
-        if name and name != old and name not in self.groups[group]:
+        if name and name != old and name != DEFAULT and name not in self.groups[group]:
             self._keep_order(self.groups[group], old, name)
             if self.active == [group, old]:
                 self.active[1] = name

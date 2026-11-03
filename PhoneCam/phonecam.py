@@ -619,6 +619,7 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None):
 
     def preset_menu():
         m = QMenu(win)
+        m.addAction("Par défaut", live.presets.apply_default)
         for group, items in live.presets.groups.items():
             sub = m.addMenu(group)
             for name in items:
@@ -671,6 +672,7 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None):
                 ("Aller au Direct", "Ctrl+1", lambda: go(0)),
                 ("Aller au Studio", "Ctrl+2", lambda: go(1)),
                 ("Ouvrir les presets", "", open_presets),
+                ("Preset : Par défaut", "", live.presets.apply_default),
                 ("Studio : lancer ou arrêter le moteur", "", lambda: studio_space.run_btn.toggle()),
                 *[(f"Preset : {g} / {n}", "", lambda g=g, n=n: live.presets.apply(g, n))
                   for g, items in live.presets.groups.items() for n in items],
