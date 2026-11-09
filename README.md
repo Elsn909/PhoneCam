@@ -62,7 +62,7 @@ et chaque icône de la colonne de gauche affiche une bulle d'aide au survol.
 La liste **« Prêt pour l'antenne ? »**, au milieu de la fenêtre, dit ce qui manque. Clique sur une étape pour y aller :
 
 1. **Connexion** : choisis la source vidéo, **Webcam du PC** ou **Téléphone** (appli Android, en Wi-Fi par QR code ou par câble).
-2. **Visage** : « Choisir une photo… » (3 à 10 photos de la même personne donnent un visage plus stable).
+2. **Visage** : « Choisir une photo… »
 3. **Caméra virtuelle** : bouton en bas (F5). Dans Discord, Snapchat, OBS… choisis la caméra **« OBS Virtual Camera »**.
 4. **Micro** : bouton en bas (F6), puis la voix si tu veux (voir ci-dessous).
 
