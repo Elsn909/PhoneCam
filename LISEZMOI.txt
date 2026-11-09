@@ -1,0 +1,674 @@
+PHONECAM STUDIO
+Direct : caméra du téléphone → remplacement du visage → filtres → effets → caméra virtuelle
+Studio : les mêmes outils sur des vidéos importées, en qualité maximale
+==========================================================================
+
+LANCER
+  Double-clic sur « Lancer PhoneCam.bat ». Les réglages sont mémorisés à la fermeture
+  (Programme\PhoneCam\data\settings.json).
+
+LE DOSSIER
+  Lancer PhoneCam.bat   le logiciel
+  Installer.bat         à lancer une fois (le relancer reprend ce qui manque)
+  LISEZMOI.txt          ce fichier
+  Voix\                 les voix du changeur de voix (un sous-dossier par voix : .pth et .index)
+  Presets\              « Presets fournis.json » : les presets livrés avec PhoneCam
+  Captures\             photos, enregistrements de la sortie et captures de diagnostic
+  Appli Android\        PhoneCam.apk, l'appli du téléphone
+  Programme\            le moteur (code, Python, modèles) : rien à y toucher. Il contient aussi
+                        « Lancer Deep-Live-Cam.bat », l'interface d'origine de Deep-Live-Cam, dont
+                        PhoneCam se sert pour la détection des visages (facultatif).
+
+INTERFACE
+  En haut : Direct et Studio, la recherche, les quatre voyants (téléphone, moteur, caméra, micro :
+  un clic ouvre leur page), les presets, annuler / rétablir, l'aide.
+  À gauche, un rail d'icônes choisit la page ; chaque page a ses petits onglets et ses cartes.
+  Direct : Favoris, Visage, Moteur, Retouche, Webcam, Ambiance, Sortie, Voix, Micro, Connexion, Diagnostic.
+  Studio : Favoris, Médias, Visages, Suivi, Moteur, Retouche, Webcam, Ambiance, Couleur, Export, Voix.
+  Première fois : un accueil explique les deux espaces et par où commencer (bouton « ? » en haut
+  à droite pour le revoir ; F1 : raccourcis). Survoler une icône de la colonne de gauche dit à
+  quoi sert la page ; chaque page a une phrase d'explication sous son titre. Dans le Direct, la
+  liste « Prêt pour l'antenne ? » est cliquable : chaque étape à faire ouvre sa page (ou démarre
+  la caméra virtuelle, le micro).
+  Largeur du panneau : tirer son bord droit à la souris (320 à 900 px), double-clic pour revenir
+  à la largeur d'origine. Retenue séparément pour le Direct et le Studio.
+  Fenêtre étroite : les boutons sous l'image passent sur deux ou trois lignes au lieu de se
+  chevaucher ; en haut, les voyants se réduisent à leur pastille (le nom est dans la bulle) et la
+  recherche se raccourcit.
+  Sous l'aperçu du Direct : Remplacement, Moteur Plus, Caméra virtuelle, Micro, puis pause, image
+  coupée, aperçu, comparaison, grille, photo, enregistrement, plein écran, panneau.
+
+  Curseurs : le nom et la valeur sont dans la barre. Glisser n'importe où (Maj : réglage fin), pas de
+  saut au clic. Double-clic : valeur d'origine. Clic droit : valeur d'origine, saisir une valeur,
+  ajouter aux favoris. Orange : réglage modifié. « Réinitialiser » remet toute la carte.
+  Recherche (Ctrl+K) : tous les réglages des deux espaces et toutes les actions, sans se soucier des
+  accents. Choisir un réglage ouvre sa page et le fait clignoter.
+  Annuler (Ctrl+Z) et rétablir (Ctrl+Y) : un préréglage entier compte pour une seule étape.
+  Favoris : clic droit sur un réglage. Ils restent liés au vrai réglage, dans les deux sens.
+  Presets fournis : « Par défaut » (moteur Plus réglé, retouches, webcam et ambiance neutres), toujours
+  en tête de la liste, ni modifiable ni supprimable, et appliqué au premier lancement ; « Visage
+  Finnyzyy » (profil « Visage 1 ») : moteur, retouches, effet webcam, ambiance et micro (égaliseur,
+  compresseur, chaleur, pièce et son de smartphone). La photo du visage n'est dans aucun preset fourni :
+  la choisir dans la page Visage, puis la disquette pour la garder dans un preset.
+  Presets (page Presets, ou icône en haut pour changer d'un clic) : des profils, et dans chacun plusieurs
+  presets qui règlent d'un coup les branches choisies (Visage, Moteur, Retouche, Webcam, Ambiance, Sortie,
+  Micro). Les autres branches ne bougent pas. Même page dans le Direct et le Studio : les presets sont
+  communs et s'appliquent aux deux espaces (Sortie, Micro, anti-fuite et stabilité : Direct seulement).
+  Attention : un preset choisi dans le Studio change aussi le Direct en cours. Les anciens préréglages par branche sont dans le profil
+  « Anciens préréglages ». Les pages gardent seulement les modèles fournis (Naturel, Glamour…).
+  Visages : glisser une photo dans la fenêtre ; les visages récents s'échangent d'un clic.
+  Comparer (F10) : l'image du téléphone à côté du rendu, le trait se déplace à la souris. Seulement
+  dans l'aperçu, jamais sur la caméra virtuelle. Molette sur l'image : zoom, double-clic : image entière.
+  Diagnostic : latence, temps par étape, charge de la carte graphique, journal d'erreurs.
+
+  Raccourcis : F1 aide, F3 pause, F4 couper l'image, F5 caméra virtuelle, F6 micro, F7 remplacement,
+  F8 photo, F9 enregistrer, F10 comparer, F11 plein écran, Ctrl+B panneau, Ctrl+P aperçu,
+  Ctrl+1 / Ctrl+2 Direct / Studio. Studio : Espace ou K lecture, I / O début et fin, ← → une image,
+  Maj+← → ou J / L une seconde, Début / Fin bouts de la zone.
+
+STUDIO : VIDÉOS IMPORTÉES (720p à 4K)
+  Tout ce que lit FFmpeg : MP4, MOV, MKV, AVI, WebM, ProRes, H.264, H.265, AV1… Les vidéos
+  verticales et le son sont gérés ; le HDR est ramené en SDR. Le fichier d'origine n'est jamais
+  modifié. FFmpeg doit rester installé sur le PC.
+  Les images aussi (PNG, JPEG, WebP, BMP, TIFF) : mêmes réglages, export en PNG ou JPEG.
+  Page Qualité : les réglages du moteur du Direct. Moteur Plus ou d'origine, HyperSwap 1a/1b/1c ou
+  inswapper, XSeg 1 à 3, HRFFA ou détecteur, zones remplacées, expressions, Mouth mask, Poisson Blend,
+  GFPGAN, GPEN 256 et 512, opacité, netteté, miroir, correction des couleurs, lissage temporel.
+  1. Importer : bouton + ou glisser des vidéos dans la fenêtre.
+  2. Visages : choisir la ou les photos à appliquer (« Comme le direct » reprend les tiennes).
+     Juste des effets sur une image ou une vidéo, visage d'origine gardé : en bas, à côté de
+     « Original / Rendu », choisir « Effets seuls » au lieu de « Changer le visage ». Les pages
+     Visages, Suivi, Moteur et Retouche disparaissent, ainsi que Lancer et Analyser : l'aperçu se
+     calcule tout de suite. Régler Webcam, Ambiance, Couleur (et Format si besoin), puis Exporter.
+     Aucun modèle de visage n'est chargé : une image ou 3 s de vidéo 1080p s'exportent en 1 à 2 s.
+     Tes réglages de Retouche sont gardés pour quand tu reviens à « Changer le visage ».
+  3. Analyser la vidéo (fait aussi automatiquement à l'export). La frise montre alors qui est
+     présent et quand, et les changements de plan. Dans Visages, chaque personne peut être
+     remplacée, laissée telle quelle ou recevoir un autre visage. Une analyse est gardée dans
+     data\studio-cache (supprimable sans risque).
+  4. Régler : Qualité, Retouche, Webcam, Ambiance, Couleur. La visionneuse montre l'image choisie
+     avec tous les réglages (Rendu, Original, ou Avant / après). Le visage calculé est gardé pour
+     cette image : Retouche, Webcam, Ambiance et Couleur se mettent à jour aussitôt. Les
+     préréglages sont communs avec le Direct, ★ pour les tiens.
+     Lecture : calcule le rendu (720p, léger) en le montrant, puis le rejoue en continu tant que
+     les réglages ne changent pas (trait vert sur la frise). En mode Original : la vidéo d'origine.
+  5. Couper le début et la fin : glisser les deux poignées de la frise, ou « Début ici » et « Fin ici »
+     à la position actuelle (touches I et O). « Tout garder » annule. Couper ne refait pas l'analyse.
+     Espace : lecture.
+  6. Exporter : le rendu rejoint la file (page Export), qui traite une vidéo après l'autre.
+     Format et cadrage (page Export) : d'origine, 16:9, 9:16, 1:1 ou 4:5 ; remplir, bandes noires ou
+     fond flouté ; zoom et position. « Suivre le visage » garde la personne dans le cadre, en douceur
+     (après l'analyse). En mode Original, le cadre final s'affiche sur l'image. La résolution
+     choisie est le petit côté : 1080p en 9:16 donne 1080 × 1920.
+  Ce qui est meilleur que le direct :
+   - Suivi : chaque image à pleine résolution, recherche ciblée quand un visage est perdu,
+     lissage dans les deux sens du temps (aucun retard). Mesuré sur 3 clips : visage suivi sur
+     100 % des images, secousses des repères divisées par 2 à 3.
+   - Visage généré : résolution adaptée à sa taille (jusqu'à 1024 px), détail conservé après
+     les expressions, GFPGAN ou GPEN 512 en option.
+   - Couleur : étalonnage complet (lumière, roues de couleur, LUT .cube, ambiances, netteté,
+     lueur, vignettage, grain), appliqué à pleine résolution sur la carte graphique.
+   - Export : H.264, H.265, AV1 (carte graphique), x264, x265 (processeur), ProRes 422 HQ.
+  Vitesse mesurée sur la RTX 5080 : vraie 4K (Tears of Steel, 4096 × 1714, gros plan) : analyse
+  ~16 img/s, rendu ~7 img/s (visage en 1024 px). Un visage plus petit va ~2 fois plus vite.
+  En 1080p avec GPEN 512 : ~7 img/s. Le premier lancement prépare les modèles quelques minutes.
+
+SOURCE VIDÉO : TÉLÉPHONE OU WEBCAM DU PC
+  Page « Connexion » → « Source vidéo » : Téléphone ou Webcam du PC, l'un ou l'autre.
+  Webcam du PC : choisir la webcam et la résolution (720p conseillé), elle démarre seule et
+  repart seule au prochain lancement. Débranchée ou prise par un autre logiciel : PhoneCam
+  réessaie toutes les 2 s. « Actualiser la liste » après avoir branché une webcam.
+  Les caméras virtuelles (OBS Virtual Camera…) ne sont pas proposées : c'est la sortie de PhoneCam.
+  Avec la webcam, les images d'un téléphone connecté sont ignorées (son micro marche toujours).
+
+CONNEXION PAR CÂBLE USB (recommandé : la plus fluide)
+  Une seule fois sur le S21 :
+    Paramètres → À propos du téléphone → Informations sur le logiciel →
+    toucher 7 fois « Numéro de version », puis
+    Paramètres → Options pour les développeurs → activer « Débogage USB ».
+  Ensuite : brancher le câble, page « Connexion » → « Connecter par câble ».
+  La première fois, accepter « Autoriser le débogage USB ? » sur le téléphone (cocher
+  « Toujours autoriser »), puis recliquer sur « Connecter ». La page s'ouvre seule dans Chrome.
+  Le câble passe par « adb reverse » : le serveur n'écoute que sur le PC lui-même (127.0.0.1),
+  rien n'est exposé sur le réseau, pas de règle de pare-feu ni d'avertissement de certificat.
+
+CONNEXION WI-FI
+  Le réseau du PC doit être en profil « Privé » (Paramètres → Réseau et Internet →
+  Ethernet → Type de profil réseau → Privé). Scanner le QR code, accepter l'avertissement
+  de certificat (il est généré localement par PhoneCam).
+  Si ça bloque : Sécurité Windows → Pare-feu → Autoriser une application → « python » → « Privé ».
+
+  Le lien contient un jeton aléatoire (gardé dans data\token.txt, pour que l'appli se
+  reconnecte toute seule) : un autre appareil ne peut pas envoyer d'images sans lui.
+  Supprimer data\token.txt pour en créer un nouveau (il faudra ré-appairer l'appli).
+
+APPLI ANDROID « PhoneCam » (recommandée : continue en arrière-plan et écran éteint)
+  Installée sur le téléphone. Câble : « Connecter par câble » sur le PC ouvre l'appli et
+  démarre l'envoi. Wi-Fi : scanner le QR code, puis « 📱 Ouvrir dans l'appli PhoneCam ».
+  Ensuite l'appli se souvient du PC et se reconnecte seule (bouton Démarrer dans l'appli).
+  Caméra → H.264 matériel, micro traité (comme un appel) ou brut, image redressée sur le PC
+  selon la façon dont on tient le téléphone. Une notification permanente indique l'envoi
+  (bouton « Arrêter »). En Wi-Fi, la liaison est chiffrée et n'accepte que ce PC.
+  Si l'envoi s'arrête écran éteint : dans l'appli, toucher la ligne ⚡ (batterie non limitée).
+  Micro : « Appel » (proche), « Haut-parleur » (capte plus loin : le téléphone passe en appel
+  mains libres), « Vidéo » (tous les micros, son naturel), « Brut » ; Gain +6 à +18 dB.
+  (Pas de 540p : les caméras du S21 Ultra ne proposent que 1280×720 ou 640×360.)
+  La « Résolution du flux » des effets se calcule sur la taille de sortie, pas sur l'image reçue.
+  Latence côté téléphone réduite : stabilisation vidéo coupée, traitements caméra rapides.
+
+APPELS SNAPCHAT DEPUIS L'APPLI (onglet Appel)
+  Les chats se font sur le PC, dans le Edge de PhoneCam (profil séparé : data\snap-browser) : la page
+  y garde sa taille normale. Première fois : s'y connecter à Snapchat, puis choisir la caméra
+  « OBS Virtual Camera » et le micro « CABLE-B Output » dans ses réglages. Garder la caméra
+  virtuelle (Sortie) et le micro démarrés. Laisser cette fenêtre ouverte ; réduite pendant un appel,
+  PhoneCam la rouvre (une page réduite se met en pause). PhoneCam la laisse ouverte en se fermant.
+  Les fenêtres privées d'Edge sont ignorées. S'il y a plusieurs onglets Snapchat, PhoneCam prend le premier.
+  Appli, onglet Appel :
+    Sans appel : tes contacts, audio ou vidéo. L'appel se lance dans la page du PC.
+    Appel entrant : le téléphone vibre et l'onglet s'ouvre : décrocher ou refuser.
+    En appel : caméra (le vrai bouton de Snapchat), micro coupé, volume de sortie et choix du micro
+    de PhoneCam, filtres Snapchat, raccrocher. Toucher la petite vidéo inverse les deux.
+    Micro coupé et caméra coupée s'affichent en rouge.
+    Le bouton sous la petite vidéo passe de la caméra avant à l'arrière du téléphone, sans couper l'appel.
+    Bouton Paramètres (écran Appels et pendant l'appel) : zoom de la sortie (jusqu'à ×2,50 sur le
+    téléphone, ×4 sur le PC), pièce sombre, blush, anti-fuite. Ce sont les réglages du PC, en direct.
+    Le panneau du volume choisit aussi le micro de l'appel : c'est le menu de la petite flèche du
+    micro dans Snapchat, qui n'existe que pendant un appel. Un micro autre que CABLE-A/B ne passe plus
+    par PhoneCam (ni voix traitée, ni volume).
+  Les deux vidéos arrivent en H.264, jusqu'à 30 images/s, à la résolution reçue par la page.
+  Sortie en 1280×720 pour Snapchat : il demande une image verticale de 406×720 et, avec une sortie
+  plus grande, n'en garde qu'une partie (image zoomée). Il garde le centre vertical de l'image :
+  avec « Ajuster (bandes noires) », une image de téléphone tenu droit y entre donc en entier.
+  data\snap-call.log note les boutons vus à chaque changement d'état d'appel.
+  Seules les actions demandées depuis l'appli sont faites (pas d'automatisation).
+  Le son de l'appel sort sur le PC (pas renvoyé au téléphone).
+
+IMAGE FIGÉE, CARTE GRAPHIQUE
+  Si le pilote graphique se réinitialise (erreur 141 dans Windows), le moteur perd la carte. La
+  sortie garde alors la dernière image (jamais ton vrai visage) et, après 8 secondes sans image
+  rendue, PhoneCam redémarre seul ; le téléphone se reconnecte tout seul.
+  Les erreurs sont notées dans data\phonecam-errors.log.
+
+CHAUFFE DU TÉLÉPHONE
+  Toujours actif : écran limité à 60 Hz (au lieu de 120) dans l'appli ; Wi-Fi laissé en
+  veille quand on passe par le câble ; écran de Snapchat envoyé au plus à 12 images/s et à
+  70 % de la taille.
+  Case « 🔋 Éco » (onglet Caméra) : caméra à 24 img/s, débit −30 %, Wi-Fi autorisé à se
+  mettre en veille, et vidéos d'appel à débit réduit. Avec l'effet « Visio » (cadence
+  24 img/s), le rendu est le même.
+  Automatique : si le téléphone devient chaud, l'appli passe d'elle-même en économie
+  (24 img/s), puis à 20 img/s et débit −50 % s'il devient très chaud. L'état thermique
+  s'affiche dans l'onglet Caméra (🌡).
+  Conseil : la recharge par le câble chauffe aussi. Sur le S21 : Paramètres → Batterie →
+  Protection de la batterie (charge limitée à 80 %).
+
+OPTIMISATION PROCESSEUR (PC)
+  L'aperçu n'est plus calculé quand on ne le voit pas (Studio ouvert, fenêtre réduite) : mesuré à 28 img/s,
+  ~2,1 cœurs avec l'aperçu, ~1,85 sans. Sa réduction prend ~0,5 ms au lieu de ~1,4 ms. Ctrl+P le coupe à la main.
+  PyTorch (collage du visage) et OpenCV laissaient leurs threads tourner à vide entre deux
+  images : ~16 cœurs occupés en continu. Corrigé au lancement de PhoneCam (threads OpenMP
+  endormis, OpenCV limité à 2 threads) : ~1,4 cœur, même vitesse (banc d'essai 720p30).
+  La garde anti-fuite ajoute 33 ms de retard par image d'anticipation (2 par défaut).
+  Mesuré (S21 Ultra, câble) : 30 img/s en 720p, micro continu, y compris écran d'accueil
+  et écran éteint.
+  Recompiler / réinstaller : PhoneCam\android\Compiler et installer l'appli.bat
+  Tout retirer (outils ~1,6 Go + clé de registre des outils Google, et l'appli si voulu) :
+  PhoneCam\android\Desinstaller les outils Android.bat
+  Outils (portables, dans tools\android-dev) : JDK 17 Temurin, SDK Android 35, Gradle 8.10.
+  Rien dans le profil Windows ni le PATH. Seule trace hors du dossier : la clé
+  HKCU\Software\JavaSoft\Prefs\google, retirée par le script ci-dessus.
+
+SUR LE TÉLÉPHONE (page web)
+  Codage « H.264 matériel » (par défaut) : la puce vidéo du S21 compresse le flux, c'est le
+  plus fluide. « JPEG » ne sert qu'en secours. Débit 6 Mb/s conseillé (10–16 en USB).
+  ↺ change de caméra, 💡 allume la lampe (caméra arrière). Tenir le téléphone à l'horizontale.
+
+PAGES DU DIRECT
+  Visage     : photo, récents, photos en plus, un visage / tous / par personne (avec seuil de
+               reconnaissance).
+  Moteur     : Base (remplacement, modèle, rendu, opacité, netteté, miroir, Fix Blueish Cam),
+               Qualité (pixel boost, ressemblance, expressions, GFPGAN, GPEN), Masque (XSeg, zones
+               remplacées, bords), Stabilité (cadrage, charge, détection), Anti-fuite, Origine
+               (Poisson blend, Mouth mask).
+  Retouche   : façon Instagram / TikTok, de −100 à +100 pour la forme : Visage (taille, joues,
+               pommettes, mâchoire, menton, front, nez, bout du nez), Yeux (taille, écart, yeux de
+               chat, hauteur et angle des sourcils), Bouche (largeur, lèvres, sourire, distance
+               au nez), Corps. De 0 à 100 : Peau (lissage, éclat, cernes, hâle, taches de rousseur,
+               contouring, highlighter, blush, rouge à lèvres en 7 teintes, dents) et Regard
+               (lumineux, couleur des yeux en 5 teintes, fard en 6 teintes, eyeliner, sourcils).
+               Préréglages : Naturel, Glamour, Poupée, Yeux de chat, Silhouette, Caricature, Bonne
+               mine, Soirée, Été, Regard clair. Filtres de maquillage : 3 à 10 ms chacun sur un
+               portrait 720p, ~40 ms pour Soirée tout entier. Appliqués au visage final, avant les
+               effets, aussi remplacement coupé.
+  Webcam     : rendu « vraie webcam / visio » : Flux (résolution, compression, débit), Capteur
+               (flou, bruit, dérive, flou de bougé, vignettage), Temps (latence, gigue, cadence).
+  Ambiance   : lumière de la pièce, ampoule RGB.
+  Sortie     : caméra virtuelle « OBS Virtual Camera » (OBS installé, pas lancé). Cadrage : zoom
+               jusqu'à ×4, position, suivi du visage, « Recentrer ». Captures :
+               vidéo de 10 s à 5 min, photo, dossier Captures.
+
+MICRO (page Micro) : effets de voix et petit réalisme de smartphone
+  Effets : égaliseur 8 points sur une courbe (glisser un point, molette :
+  largeur, double-clic : 0 dB ; spectre de la voix en direct derrière), coupe-bas et coupe-haut,
+  de-esser (sifflantes), compresseur (réduction affichée), chaleur (saturation douce).
+  Styles fournis (Voix claire, Chaude et proche, Podcast / radio, Petit haut-parleur) et les
+  tiens (★, disquette). Tout entre aussi dans les presets (branche Micro). ~0,1 ms par bloc.
+  Ambiance : le petit réalisme d'un smartphone d'aujourd'hui (couleur du micro, petite pièce,
+  bruit de fond très léger, ≈ −68 dB). Plus de codec, de pertes ni de saturation.
+  Entrée (ex. « CABLE-A Output », ou directement le micro des écouteurs) → simulation →
+  sortie (ex. « CABLE-B Input ») ; dans l'autre logiciel, choisir « CABLE-B Output » comme micro.
+  « Écoute de contrôle » : pour s'entendre sur un casque / les haut-parleurs.
+  Parler de plus loin (Appareils) : le tout premier traitement, avant le changeur de voix et
+  Smart. « Sensibilité du micro » (gain fixe) et « Niveau automatique » (ne réagit qu'à une voix
+  qui a une hauteur, jamais aux bruits ; revient à zéro après 8 s sans voix) : ta voix est ramenée à
+  son niveau « près du micro » (jusqu'à « Remontée maximale »), le gain ne bouge que quand tu
+  parles (pas de bruit qui remonte dans les silences), sans à-coup ; la remontée en cours est
+  affichée. Mesuré sur des prises éloignées à 25–45 cm passées dans un modèle de voix : parole coupée par
+  Smart 31 % → 0–2 %. « Moins d'écho de la pièce » et « Graves rendus de loin » (coupés par
+  défaut) : surtout pour ta vraie voix, à l'oreille (avec le changeur, ils n'aident pas).
+  Chaîne : micro → entrée (sensibilité, niveau automatique) → voix (transformée ou non) → effets → réalisme (pièce, bruit de fond très léger,
+  couleur du micro de téléphone) → limiteur. « Son de smartphone » coupé : rien d'autre que ta
+  voix et ses effets. « Retard ajouté » et « Ajouter la latence de la vidéo » recalent la voix
+  sur l'image. Traitement : ~0,4 ms par bloc de 10 ms.
+  Bibliothèque ajoutée au venv : sounddevice (PortAudio, WASAPI).
+
+VOIX (page Voix) : changeur de voix en temps réel (RVC 2.3, optimisé) avec Smart
+  Le son passe : micro → voix transformée → effets et ambiance (page Micro) → sortie. Un modèle à la fois : un .pth RVC (v1 ou v2, 32/40/48 kHz) et son .index.
+  « Bibliothèque » : tes dossiers de voix (un sous-dossier par voix) ; un clic charge (1 à 3 s).
+  Voix fournies : Voix01 et Voix02, dans le dossier « Voix » à côté de « Lancer PhoneCam.bat ». Au
+  premier lancement, ce dossier devient le dossier de voix et Voix01 est choisie (le changeur reste
+  coupé tant qu'on ne l'active pas). Pour en ajouter : les ranger dans ce dossier, un sous-dossier
+  par voix avec son .pth et son .index.
+  « Dossiers… » : ajouter un dossier où tu ranges tes voix (autant que tu veux), l'ouvrir dans
+  l'explorateur ou le retirer de la liste (rien n'est supprimé). Mêmes dossiers dans le Studio.
+  On peut aussi glisser un .pth dans la fenêtre. L'index du même dossier est trouvé tout seul.
+  « Voix transformée » (F2, bouton « Voix » en bas) : jamais ta voix d'origine quand c'est
+  actif ; en attendant un modèle, c'est le silence.
+  Smart (à laisser activé) : rien d'autre que ta voix n'entre dans le modèle.
+    · nettoyage (GTCRN) avant la conversion : clavier, ventilateur, souffle ;
+    · nettoyage limité (« Atténuation maximale », 10 dB) : les « p », « f », « s » et les
+      voix douces ne sont jamais effacés ;
+    · détection de voix (Silero VAD, sur le son nettoyé et sur le son brut) + détecteur de
+      souffle : ce qui sort de ta bouche passe (voix, respirations, souffles, chuchotements) ;
+      ce qui n'a rien de vocal est un silence exact : chocs et clics (clavier, souris, objet
+      posé), frottements et manipulations (grondement grave), grincements aigus, ventilateur.
+      Souffles, respirations et chuchotements : seulement dans une phrase (moins de 1,5 s
+      après ta voix) ; hors des phrases, rien sans hauteur de voix ne passe (option
+      « Chuchotements seuls » pour une phrase entièrement chuchotée). Le débruiteur ne retire
+      jamais plus de 3 dB d'une voyelle (sinon un « aaaah » tenu finissait effacé).
+      Notes tenues (« mmmm », « eeeuh ») : la recherche dans l'index est lissée sur ±40 ms (le
+      timbre ne « saute » plus toutes les 200 ms, articulation gardée).
+  Voix et vidéo sur la même carte : pendant les ~20 ms où la voix calcule (toutes les 200 ms),
+  la vidéo attend avant sa prochaine étape (tour_gpu.py, 60 ms au plus). Mesuré avec une
+  amélioration de visage en continu : bloc de voix 177 → 40 ms, et la vidéo va même plus vite
+  (9 → 18 img/s) car les deux ne se gênent plus. C'était la cause des à-coups réguliers et des
+  silences de quelques secondes (blocs en retard).
+  Réserve de sortie : PhoneCam raccourcit les silences pour garder la latence basse, mais garde
+  au moins 60 ms de réserve en plus (elle grandit de 30 ms à chaque coupure, jusqu'à 200 ms, et
+  redescend doucement). Avant, la réserve tombait à 40 ms et un bloc un peu lent la vidait :
+  coupure toutes les 12–14 s (vu dans le journal, reproduit en simulation : 15 → 1 en 3 min).
+  Fins de phrases : la porte de Smart se ferme en fondu (60 ms), le nettoyage est moins fort
+  (« Atténuation maximale » 10 dB au lieu de 18) et épargne la fin des mots (au plus 6 dB
+  retirés juste après la voix) : le « l » de « mal » n'est plus rogné. Bruits toujours coupés.
+  Boîte noire : PhoneCam garde toujours les 30 dernières secondes (micro brut, voix sortie, et
+  ce que Smart a décidé trame par trame). Page Voix, onglet Réglage, carte Dépannage → « Ma voix a coupé : garder les 30
+  dernières secondes », juste après une coupure ; capture aussi toute seule si ta voix est
+  nette mais que Smart reste fermé ~1 s (au plus une fois toutes les 2 min). Rangé dans
+  data/coupures-voix (les 10 dernières), rien n'est envoyé nulle part.
+  Journal : data/voix-journal.log note chaque seconde où le son a pu se couper (manque en
+  sortie, blocs du micro perdus, bloc de voix trop lent) ; utile pour comprendre une coupure.
+      Une voyelle tenue (« aaaah ») garde la porte ouverte. Maintien 300 ms (occlusions p, t, k),
+      ouverture 50 ms avant le mot. Réglé sur une voix douce : seuil 35 %. Souffler
+      directement dans le micro (grondement) compte comme un frottement ;
+    · hauteur seulement dans la parole : RVC d'origine invente une hauteur dans les bruits,
+      et son générateur de sinus en fait des sons « chantés » ; ici les consonnes restent
+      des consonnes, les fausses détections et sauts d'octave sont effacés.
+  Voix : hauteur (±24 demi-tons), timbre (formants), index, protection des consonnes,
+  suivi du volume de ta voix, gain.
+  Voix vivante (ton bas) : « Ta hauteur normale » (Hz, ta voix joyeuse habituelle ; à régler à
+  l'oreille, ta hauteur du moment est affichée, ou « Mesurer ma voix normale », ~5 s). Quand tu
+  parles plus bas, la voix est remontée (sans à-coup, intonation gardée), sa mélodie élargie
+  (moins monotone) et un peu de clarté ajoutée : enjouée plutôt qu'éteinte.
+  Voix favorites : ☆/★ à côté du nom, ou clic droit dans la bibliothèque ; elles sont en tête.
+  Réglages : enregistrés tout seuls toutes les 20 s et à la fermeture (bouton « Enregistrer mes
+  réglages » pour le faire tout de suite) ; ils reviennent tels quels au prochain démarrage.
+  Le Direct est fait pour le temps réel seulement : l'ancien banc d'essai (fichier ou 10 s de ta
+  voix rejoués en boucle) est retiré des pages Voix et Micro. Pour travailler un fichier : Studio,
+  page Voix (ci-dessous).
+  Réglage : bloc 0,20 s par défaut, contexte 2,5 s, fondu 40 ms, réserve anti-coupures 40 ms.
+  Retard de la voix ≈ 0,33 s (cartes son comprises). Calcul ≈ 20 ms par bloc sur la carte
+  graphique (flux CUDA prioritaire, CUDA Graphs). Le retard en trop après une coupure est
+  rattrapé tout seul en raccourcissant un silence. « Ajouter la latence de la vidéo » (Micro)
+  tient compte du retard de la voix.
+  Modèles de base dans Programme\data\models-voix : HuBERT (ContentVec), RMVPE, Silero VAD, GTCRN.
+  Les .pth sont lus en « poids seuls » : un fichier piégé ne peut pas exécuter de code.
+  Pas encore pris en charge : modèles Applio avec vocodeur RefineGAN / MRF HiFi-GAN.
+  Bibliothèque ajoutée au venv : faiss-cpu (lecture des .index).
+
+STUDIO, PAGE VOIX : transformer la voix d'un fichier (post-production)
+  1. Le son : « Fichier… » (WAV, MP3, M4A, FLAC, OGG… ou le son d'une vidéo, 30 min au plus),
+     « Enregistrer » (ton micro, jusqu'au clic suivant ; gardé dans data\studio-voix) ou « Son du
+     média » (le son de la vidéo choisie dans Médias). Un son glissé dans le Studio ouvre cette page.
+  2. Écouter : forme d'onde (gris l'original, orange la voix transformée ; un clic y place la
+     lecture). « Original » / « Transformée » passe de l'un à l'autre au même endroit. Touches :
+     Espace lecture, A original / transformée, ← → 2 s, Début.
+  3. La voix : un modèle de tes dossiers de voix (★ favorites en tête), « Autre fichier… »,
+     « Dossiers… » ; hauteur, timbre, index, consonnes. « Comme la voix du Direct » reprend les
+     réglages de la page Voix du Direct.
+  4. Nettoyage et volume : Smart (seulement la voix), débruitage, suivi du volume, volume.
+  5. Effets du micro : tous ceux de la page Micro du Direct, appliqués au son exporté (repris du
+     Direct au premier usage, puis réglés à part ; « Comme le micro du Direct » pour les reprendre) :
+     onglet Effets (égaliseur visuel et ses styles, sifflantes, compresseur, chaleur), onglet
+     Ambiance (son de smartphone, pièce, bruit de fond), onglet Réglages fins (niveau d'entrée avant
+     la voix : sensibilité, niveau automatique, moins d'écho, graves de loin ; gain de sortie ;
+     détection de la voix et voix vivante). Pendant la lecture, la courbe de l'égaliseur montre le
+     spectre du son entendu. « Changer la voix avec un modèle » coupé : la voix d'origine est
+     gardée et seuls ces effets sont appliqués (aucun modèle à charger).
+     Ordre, comme en direct : niveau d'entrée → voix → effets → smartphone. Aucun décalage
+     (« Moins d'écho » retarde de 5 ms : compensé). Un effet changé ne refait pas la voix (≈ 0,5 s).
+  6. Exporter : WAV 24 bits, FLAC, MP3 320 kb/s ou M4A ; ou « Exporter la vidéo avec cette voix »
+     (image d'origine copiée sans perte, son remplacé). Le fichier d'origine n'est jamais modifié.
+  Un réglage changé est réentendu tout seul (sons de moins de 3 min) ; sinon il est appliqué à
+  l'écoute ou à l'export. Même moteur que le Direct, mais blocs de 0,5 s et 4 s de contexte (plus
+  stable), puis recalé sur l'original (même durée, synchro avec la vidéo ; écart mesuré 0 à 3 ms).
+  Vitesse mesurée avec une voix fournie : 10 s de son en 0,4 s, 18 s en 0,7 s (+ ~20 s pour charger la voix
+  la première fois). Moteur à part de celui du Direct : la voix en direct n'est jamais coupée ;
+  sa mémoire sur la carte graphique est rendue après 10 min sans servir.
+
+MICRO DU TÉLÉPHONE COMME MICRO DU PC
+  Sur la page du téléphone : cocher « 🎤 Micro » (et décocher « 📷 Caméra » pour le micro
+  seul), puis Démarrer. « Son du micro » : traité par le téléphone (réduction de bruit,
+  anti-écho, gain automatique, comme en appel) ou brut.
+  Sur le PC, page Micro : entrée « Micro du téléphone (PhoneCam) », sortie « CABLE-B Input »,
+  Démarrer le micro. Cocher « Son brut » pour ne rien ajouter (sinon la simulation s'applique).
+  Dans n'importe quel logiciel (Discord, OBS, navigateur…) : micro « CABLE-B Output ».
+  (Facultatif : Paramètres → Son → CABLE-B Output → Propriétés → le renommer « Micro du
+  téléphone ».)
+  Le son passe par la même connexion que la caméra (câble USB ou Wi-Fi). Un tampon de
+  ~100 ms absorbe les à-coups du Wi-Fi, et grandit tout seul (jusqu'à 200 ms) s'il en manque.
+  Garder l'écran du téléphone allumé et la page au premier plan : Android coupe le micro
+  d'une page en arrière-plan.
+
+SON DU PC VERS LE TÉLÉPHONE
+  Dans l'appli du téléphone (onglet Caméra) : case « 🔊 Son du PC » et curseur de volume
+  (0 à 200 %, appliqué tout de suite, sans couper la caméra). L'envoi doit être démarré.
+  Tout ce que joue le PC sur sa sortie par défaut (capture « loopback » de Windows, sans câble
+  virtuel) part en direct : PCM 16 bits stéréo 48 kHz par paquets de 20 ms, sur la même
+  connexion que la caméra (câble USB ou Wi-Fi), ~190 ko/s. Réserve de 60 ms sur le téléphone ;
+  le retard ne s'accumule jamais (rattrapé au-delà de 200 ms). Rien n'est capté tant que la
+  case n'est pas cochée.
+  Sur le PC, page Connexion → « Son du PC vers le téléphone » : l'autoriser ou non, et l'état.
+  Avec le micro du téléphone en même temps : des écouteurs, sinon le PC s'entend en écho.
+  Fichiers : son_pc.py (PC), PcAudio.java (appli).
+
+ÉCOUTEURS BLUETOOTH (Galaxy Buds Live) SUR LE PC
+  Le PC a déjà un Bluetooth intégré qui fonctionne (Qualcomm FastConnect 7800, sur la carte
+  Wi-Fi de la carte mère : antennes vissées à l'arrière du PC). La clé USB Bluetooth est un
+  clone CSR « Generic Bluetooth Radio » refusé par Windows 11 (erreur code 31) : inutile,
+  la débrancher.
+  1. Couper le Bluetooth du téléphone (les Buds se reconnectent sinon toujours à lui).
+  2. Mode appairage : écouteurs dans le boîtier, ouvrir le couvercle ; sinon, les porter et
+     maintenir les deux zones tactiles ~3 s jusqu'aux bips.
+  3. Windows : Paramètres → Bluetooth et appareils → Appareils → « Découverte d'appareils
+     Bluetooth » = Avancé ; puis « Ajouter un appareil » → Bluetooth → Galaxy Buds Live.
+  4. Onglet Micro → « Actualiser la liste » → entrée « Casque (Galaxy Buds Live) ».
+     Quand le micro est ouvert, Windows passe les Buds en mode appel (son des écouteurs
+     moins bon) : c'est une limite du Bluetooth, pas de l'application.
+
+PRÉRÉGLAGES PERSO
+  Tes réglages se gardent dans la page Presets, commune au Direct et au Studio.
+  Bouton Lancer (Studio) : rien n'est chargé à l'ouverture, la vidéo d'origine s'affiche. Lancer charge
+  les modèles et affiche le rendu, Arrêter les libère. Analyser, Lecture et Exporter marchent sans lui.
+  Re-choisir un préréglage le réapplique. Enregistrés aussitôt dans data\settings.json.
+  Le préréglage Visage comprend l'image source et les correspondances.
+
+ANTI-FUITE (page Moteur)
+  Quand la détection rate (visage tourné, caché, flou), Deep-Live-Cam laisse passer l'image
+  d'origine : ton vrai visage serait visible. La garde retient quelques images
+  (« Anticipation », 2 par défaut ≈ 66 ms de délai en plus) : une image ne sort que si elle ET
+  les suivantes sont bien remplacées, sinon la dernière image sûre est répétée. Les images
+  juste avant la perte (souvent déjà ratées) sont donc figées aussi, et au retour du visage
+  il faut le même nombre d'images correctes avant de repartir.
+  Image jugée risquée : aucun visage remplacé, confiance de détection sous le seuil
+  (« Confiance minimale » : plus haut = gel plus tôt quand le visage tourne), ou un visage de
+  moins que juste avant (mode tous les visages / correspondance).
+  « Surveiller la tête qui tourne vite » (moteur Plus, activé) : le détecteur reste sûr de lui
+  pendant une rotation rapide alors que le remplacement lâche. Ses repères sont donc comparés à
+  ceux de HRFFA ; quand ils se contredisent, la confiance baisse et l'image se fige avant. Le
+  réglage suit « Confiance minimale ». HRFFA pèse ~36 Mo, téléchargé au 1er usage s'il manque.
+  « Assouplir les masques quand la tête bouge vite » (page Moteur, Stabilité, activé) : sur une tête
+  rapide ou tournée, XSeg et le masque du modèle ouvrent des trous qui montrent le vrai visage. Ils
+  sont relâchés le temps du passage. Mesuré en aller-retour rapide : images plus proches du vrai
+  visage que de la photo 104 → 53 sur 550 ; de face, écart moyen 0,03 sur 255. Une main devant le
+  visage peut être recouverte pendant ces passages.
+  Visage qui saute de profil : corrigé dans la stabilisation du cadrage. Les positions étaient
+  divisées par l'écart des yeux puis remultipliées par celui de l'image suivante ; de profil cet écart
+  s'effondre et tout le visage partait hors de la tête, le temps d'une image. Le visage suivi était
+  aussi oublié une image sur deux en mouvement, ce qui relançait l'accord des couleurs. Rejoué sur
+  une capture réelle : images décrochées 82 → 1 sur 300, écart maximal 2,3 → 0,26 taille de visage,
+  à-coups divisés par 12.
+  Réglage conseillé en mouvement : repères HRFFA, lissage temporel coupé, anti-fuite actif. Tête très
+  levée, le détecteur croit voir un visage de face et laisse le vrai nez sur le côté ; pas HRFFA.
+  Défauts restants à l'extrême (tête très levée, profil parfait) : limite de ces modèles de face.
+  Capture de diagnostic (page Diagnostic) : 15 s de l'image rendue, jamais l'image reçue, avec les valeurs du
+  moteur, dans le dossier Captures. Si une fuite a lieu, elle s'y voit : à supprimer une fois lus.
+  Après le « Gel maximal » : rester figé, image noire, ou laisser passer. Au lancement, tant
+  qu'aucun visage n'a été remplacé, l'image est noire (sauf « laisser passer »).
+  Rien n'est retenu quand le face swap est coupé ou sans visage source.
+
+MOTEUR PLUS (page Moteur) : plus réaliste, suit mieux les expressions
+  C'est le moteur de la 1re livraison (celui qui suivait le mieux tes expressions).
+  Remplace le collage de Deep-Live-Cam. Pour chaque visage :
+   - modèle au choix : HyperSwap 1a / 1b / 1c (256 px, FaceFusion 2025 ; 1a = le plus
+     naturel, conseillé) ou inswapper 128 (celui de Deep-Live-Cam : ressemblance maximale) ;
+   - « Suivi des expressions » (LivePortrait, 80 %) : l'expression réelle (ouverture de la
+     bouche, lèvres, sourire, sourcils, regard) est réappliquée au visage généré. Seule la
+     forme de l'expression est transférée, pas ta bouche ni ta peau ;
+   - « Garder devant le visage ce qui le cache » (XSeg) : une main, un micro, un verre
+     restent devant au lieu d'être recouverts ;
+   - « Contour précis » (BiSeNet) : collé sur le visage seul, sans cheveux ni décor ;
+   - couleur, lumière, grain et netteté accordés à l'image filmée (moins « lisse »).
+  « Stabilisation de profil » (70 % par défaut) : de profil ou tête très levée, le cadre du
+  visage tremble et saute d'une image à l'autre ; il y est lissé (filtre qui laisse passer les
+  mouvements rapides). De face, rien ne change : le lissage s'efface en dessous de ~40°.
+  Mesuré sur les clips de test : gros sauts du cadre de profil 26 → 10 % des images (avec
+  HRFFA ; 38 → 13 % avec le détecteur), scintillement du visage de profil −35 % (−43 % à 100 %),
+  un peu moins de « fuite » de la personne filmée ; clips de face inchangés. Plus fort = plus
+  stable, mais le visage suit avec un léger retard les mouvements de tête rapides de profil.
+  « Visage manqué une ou deux images : garder le précédent » : de profil, le détecteur rate
+  parfois le visage une image ; au lieu de laisser passer ton vrai visage (ou de figer
+  l'image), le moteur Plus garde la position précédente, au plus 2 images de suite.
+  MICRO-SAUTS (octobre 2026) : mesurés image par image sur un clip de profil avec des réglages complets,
+  ils venaient surtout de deux choses :
+   - le moteur Plus prenait ~40 ms par image (le suivi des expressions seul : ~17 ms) pour
+     30 images reçues par seconde : une image sur cinq environ était sautée, d'où un petit
+     saut du mouvement. Le travail du moteur Plus est maintenant découpé en deux étapes, et
+     la fin d'une image chevauche le début de la suivante (case « Moteur Plus : deux images en
+     chevauchement », page Moteur, Stabilité, activée par défaut). Chaque
+     image donne exactement le même résultat (vérifié). Mesuré : 26 → 29 img/s, images
+     sautées 24 → 2 sur 250, latence 148 → 112 ms.
+   - l'anti-fuite : de profil, la confiance du détecteur passe sous le seuil par paquets de
+     3–4 images ; l'image se figeait puis repartait d'un coup. La confiance est maintenant
+     lissée sur quelques images, et à la reprise l'image figée se fond dans l'image vivante
+     (3 images) au lieu de sauter. Avec « Confiance minimale » à 70 %, l'image se fige encore
+     de profil complet (le détecteur y donne 50 à 70 %) : 55 % (valeur conseillée) limite ces
+     gels.
+  Aussi corrigé : le « Lissage temporel » de Deep-Live-Cam gardait une image périmée quand le
+  visage était perdu, et la mélangeait au retour du visage (image fantôme).
+  « Réglages d'origine du moteur Plus » remet ces réglages à leurs valeurs de départ.
+  Mesuré (comparé au collage d'origine) : écart d'ouverture de la bouche −25 à −45 %, écart
+  de sourire −50 à −70 % ; ~25 img/s dans le pipeline complet, latence PC ~57 ms.
+  Mouth mask et Poisson Blend ne s'appliquent pas en mode Plus ; GFPGAN / GPEN oui.
+  Modèles (~1,6 Go) téléchargés à la 1re activation depuis les versions officielles de
+  FaceFusion (vérifiés par CRC32), dans Programme\data\models-plus. La 1re activation prépare aussi les
+  moteurs TensorRT pour la carte (Programme\data\models-plus\trt-cache) : une à quelques minutes,
+  pendant lesquelles le collage d'origine continue. Ensuite : quelques secondes.
+  Bibliothèque ajoutée au venv : tensorrt-cu12 (moteurs optimisés pour la carte).
+  Tout retirer : supprimer Programme\data\models-plus (et, si voulu, « pip uninstall tensorrt-cu12 »).
+
+  MODÈLES DE SWAP RÉCENTS (recherche d'octobre 2026) : HyperSwap (FaceFusion) reste le meilleur
+  disponible en temps réel pour les expressions. Essayé : AlphaFace (janvier 2026, conçu pour le
+  profil, 12 ms) : meilleur de profil, mais atténue l'ouverture de la bouche (mesuré) et jugé
+  moins bon en test réel ; retiré. Les autres modèles publics (ReSwapper, InStyleSwapper,
+  GhostFace, SimSwap) sont plus anciens ou en dessous ; les modèles à diffusion sont bien trop
+  lents pour le direct.
+  ESSAYÉ PUIS RETIRÉ (en test réel, le suivi des expressions était moins bon) : renfort
+  d'identité, renfort et passe de profil, orientation de la tête par LivePortrait, bouche
+  prise au modèle de swap, lissage dans le temps, stabilisation du cadrage réelle, XSeg 2/3
+  avec bords recalés, barbe incluse, rendu de deux images à la fois (repris depuis autrement, sans rien changer
+  au rendu : voir « Micro-sauts »). Écartés aussi après
+  mesure : MediaPipe Face Landmarker (ne trouve plus le visage au-delà de 45° : 45 % des
+  images à 45–60°, 10 % à 60–75°, contre 100 % pour le détecteur actuel), YOLOFace et 2DFAN4
+  (aucun gain). Limites connues des modèles de swap actuels (FaceFusion compris) : de profil
+  complet, la personne filmée reste un peu reconnaissable ; la barbe est conservée.
+
+RÉGLAGES AVANCÉS DU MOTEUR PLUS (page Moteur, repris de FaceFusion)
+  Repliés par défaut. Leurs valeurs de départ donnent exactement le rendu d'origine (vérifié
+  image par image) : rien ne change tant qu'on n'y touche pas. « Réinitialiser » de la carte, ou les réglages
+  avancés d'origine » (ou double-clic sur une valeur) pour revenir en arrière.
+   - Pixel boost : 512 px = le modèle passe 4 fois sur des images entrelacées, assemblées en
+     512 px (FaceFusion « face_swapper_pixel_boost ») : peau, barbe, sourcils plus fins, surtout
+     visage proche de la caméra. Coût mesuré ~+15 ms par image. 768 px : ~+50 ms, trop lent
+     pour le direct. Le suivi des expressions reste calculé en 256 px.
+   - Détecteur d'occlusion (« face_occluder_model ») : version de XSeg utilisée par « Garder
+     devant le visage ce qui le cache ». XSeg 1 = d'origine ; XSeg 2 et XSeg 3 (le plus récent)
+     pour comparer, avec exactement le même traitement que XSeg 1 (pas les bords recalés
+     essayés autrefois). Téléchargés au 1er choix (~67 Mo chacun, Programme\data\models-plus), puis
+     ~1 min de préparation TensorRT ; XSeg 1 continue en attendant. Même coût que XSeg 1.
+     Constaté en test réel : avec XSeg 2 et 3, une langue tirée « glitche » (à moitié vraie, à
+     moitié générée) : ces versions la prennent en partie pour un objet devant le visage, de
+     façon instable d'une image à l'autre. XSeg 1 la traite comme le reste du visage. Pour les
+     grimaces, garder XSeg 1.
+   - XSeg et moustache (Direct et Studio) : une moustache ou une barbiche peut passer pour un objet
+     devant le visage et apparaître par moments. Trois réglages, sans effet tant qu'on n'y touche
+     pas (seuil 50, taches 0 %, stabilité 0 %) :
+     « ignorer les petites taches » (commencer autour de 8 %, en % du visage), le plus efficace ;
+     « stabilité du masque » contre le clignotement (une main qui arrive passe sans retard) ;
+     « seuil de détection » : plus bas, XSeg réagit moins partout.
+     Un objet plus petit que la taille choisie (doigt, cigarette) passe derrière le visage généré,
+     et le bord d'une grande main peut être un peu rogné. Dans le Studio, la stabilité agit à
+     l'export et entre images qui se suivent, pas sur une image isolée de l'aperçu.
+   - Repères du visage (« face_landmarker_model ») : les 5 points (yeux, nez, coins de la bouche)
+     qui placent le visage généré. D'origine : ceux du détecteur InsightFace de Deep-Live-Cam.
+     HRFFA (FaceFusion 3.9, 2026) : 68 points calculés sur toute la tête, prévu pour tenir
+     jusqu'au profil complet, ramenés à 5 points comme dans FaceFusion. Mesuré sur les 5
+     clips de test (moteur Plus) : ~2,6 ms par visage ; points 10 à 30 % plus stables à tous les angles ;
+     sur le clip le plus de profil, le visage reste bien placé (avec le détecteur, l'œil et
+     le visage glissent sur la tempe) et la ressemblance avec la personne filmée baisse
+     (fuite moyenne 0,24 → 0,18, pire image 0,79 → 0,45). Un peu moins précis sur
+     l'ouverture de la bouche sur un des clips (écart +13 %). ~36 Mo, téléchargé au 1er choix.
+   - Ressemblance à la photo (« face_swapper_weight ») : au-dessus de « d'origine », l'identité
+     s'éloigne davantage de la personne filmée ; en dessous, un peu d'elle est gardé.
+   - Zones remplacées (« face_mask_regions ») : décocher une zone garde la vraie. Par exemple
+     « Intérieur de la bouche » : tes vraies dents et ta langue (utile si la langue passe sur
+     les lèvres) ; « Yeux » : ton vrai regard. Analyseur par zones préparé une fois (fichier
+     Programme\data\models-plus\bisenet_labels_256.onnx), ~1 min de préparation TensorRT la 1re fois,
+     en arrière-plan : le rendu d'origine continue en attendant.
+   - Expressions du haut / du bas (« expression_restorer_areas ») : décocher garde l'expression
+     du visage généré pour cette zone.
+   - Marge du bord, fondu du bord, adoucissement des contours (« face_mask_padding »,
+     « face_mask_blur ») : où et comment le visage généré se fond dans l'image.
+  Le « face tracker » de FaceFusion n'est pas repris : il comble les images sans visage en
+  s'appuyant sur les images suivantes, donc seulement pour une vidéo déjà enregistrée (en direct,
+  c'est le rôle de l'anti-fuite).
+  CanonSwap (ICCV 2025, remplacement dans un « espace canonique » sans pose, construit sur
+  LivePortrait) testé sur les clips (octobre 2026) : expressions mieux suivies (bouche 2 à
+  2,5 fois plus juste) et image très stable, mais ressemblance avec la photo nettement plus
+  faible (~−30 %), visage lissé, délavé au profil complet, et ~105 ms par image (PyTorch) contre
+  ~30 ms pour le moteur Plus. Pas intégré, fichiers de test supprimés.
+  Non repris : autres modèles de swap (déjà comparés, voir ci-dessus),
+  détecteurs et repères (déjà comparés), améliorateurs de visage (GFPGAN/GPEN déjà présents ;
+  CodeFormer et GPEN 1024+ bien trop lents pour le direct), éditeur de visage, synchro labiale,
+  colorisation, modificateur d'âge (pas du réalisme).
+  Au passage : l'accord des couleurs est calculé en table (2,1 → 1,4 ms par image, résultat
+  identique).
+
+ÉTALONNAGE ET AMBIANCE (page Ambiance)
+  Simple étalonnage de l'image, appliqué avec le rendu webcam (~1 à 3 ms) :
+   - « Lumière chaude ↔ froide » : teinte d'une ampoule chaude (2700 K) ou d'une lumière froide
+     (LED, néon blanc, écran) ; la balance des blancs de la caméra n'en corrige qu'une partie,
+     comme en vrai ;
+   - « Ampoule RGB » : intensité et couleur d'une ampoule de couleur (violet, rouge, bleu…) ;
+   - « Pièce sombre » : image assombrie, avec ce que fait une webcam poussée en gain (plus de
+     bruit, détails un peu lissés, couleurs ternies, ombres bouchées) ;
+   - exposition, contraste, saturation.
+  « Ambiance » : Ampoule chaude, Lumière froide, Pièce sombre + ampoule chaude, Soirée devant
+  l'écran, Ampoule RGB violette / rouge / bleue ; chaque réglage reste modifiable.
+
+ENREGISTRER LA SORTIE (page Sortie, Captures)
+  « Enregistrer 10 s de la sortie » : ce que reçoit la caméra virtuelle (effets compris) est
+  enregistré dans le dossier Captures (sortie_date_heure.mp4). Pratique pour vérifier un
+  défaut (profil, main devant le visage) ou pour comparer deux réglages.
+
+PLUSIEURS PHOTOS DU VISAGE SOURCE (page Visage)
+  « Ajouter d'autres photos… » : 3 à 10 photos variées de la même personne (angles, lumières,
+  expressions). Leurs empreintes sont moyennées : identité plus fidèle et plus stable qu'avec
+  une seule photo, en mode Plus comme avec le collage d'origine. Une photo d'une autre
+  personne est écartée automatiquement (indiqué dans la ligne d'état).
+
+FILTRES DE FORME : DÉCOR PROTÉGÉ, TÊTE TOURNÉE, SILHOUETTE
+  « Ne déformer que la personne » (page Retouche, Stabilité, activé par défaut) : la
+  silhouette est détectée (MODNet, 25 Mo, téléchargé avec le moteur Plus) et seuls le visage
+  et le corps sont déformés ; un mur, une porte, un écran derrière toi restent droits.
+  Repères 3D (68 points avec la profondeur, modèle « 1k3d68 » déjà fourni avec Deep-Live-Cam) :
+  l'intensité ne baisse plus quand tu tournes la tête, et chaque joue reçoit un effet à la
+  mesure de sa largeur visible (la joue tournée vers la caméra davantage).
+  Contour du visage déplacé par un maillage souple : il arrive exactement où il faut, et les
+  yeux, sourcils, nez et bouche restent en place (plus de coins d'yeux ou de bouche tirés).
+  « Corps » suit la vraie silhouette : chaque hauteur est resserrée vers le milieu du corps à
+  cette hauteur (buste penché ou décalé suivi). Sans le détourage : comme avant.
+  « Repères du visage » (page Retouche, Stabilité) : InsightFace (d'origine) ou HRFFA
+  (FaceFusion 3.9, le même que pour le moteur Plus). Avec HRFFA, ses 68 points placent tous
+  les filtres (forme et maquillage) ; le modèle 3D d'InsightFace ne donne plus que la
+  profondeur. Mesuré (préréglage Glamour) : même coût ; tremblement des filtres −43 % sur le
+  clip de profil, identique de face ; de profil complet, les filtres s'appliquent encore
+  (rouge à lèvres au bon endroit) là où InsightFace ne trouvait plus les repères.
+  Coût : ~16 ms pour tout le préréglage Glamour + Corps (détourage ~6 ms, repères 3D ~4 ms),
+  seulement quand un filtre de forme est réglé.
+
+PERFORMANCES MESURÉES (RTX 5080, 1280×720, flux 30 img/s)
+  Face swap seul ............................ 30 img/s, ~15 ms, latence PC ~15 ms
+  + mouth mask .............................. 30 img/s (~18 ms)
+  + effets (préréglage Visio) ............... 24 img/s (limite du préréglage)
+  Correspondance de visages ................. ~29 img/s
+  + GFPGAN .................................. ~21 img/s
+  + GPEN 256 / GPEN 512 ..................... ~13 / ~8 img/s (pas adaptés au temps réel)
+  Moteur Plus (pipeline complet) ............ ~25 img/s, latence PC ~57 ms
+  → Pour le live : pas d'amélioration, ou GFPGAN si la qualité prime sur la fluidité.
+
+CHARGE DE LA CARTE GRAPHIQUE (octobre 2026)
+  Mesuré avec des réglages complets (RTX 5080, moteur Plus, filtres de forme) : 65 % de charge, 197 W.
+  Sans aucun changement visible (vérifié image par image : écart moyen 0,06 sur 255, aucun
+  tremblement en plus) :
+   - les repères HRFFA du face swap sont repris par les filtres de forme (ils étaient
+     calculés deux fois sur la même image), et les 106 repères d'InsightFace ne sont plus
+     calculés quand les filtres utilisent HRFFA ;
+   - le détecteur de visage et les repères 3D passent sur TensorRT (FP32, même précision ;
+     préparés en arrière-plan la 1re fois, puis en cache dans Programme\data\models-plus\trt-cache) ;
+   - l'empreinte de la personne filmée (réglage « Ressemblance ») est recalculée 5 fois par
+     seconde au lieu de chaque image.
+  Résultat : 62 %, 188 W. Le reste vient surtout des modèles qui font le rendu (expressions
+  LivePortrait ~ un tiers, remplacement, XSeg), déjà optimisés.
+  Le vrai levier : « Images/s traitées par l'IA » (Face swap → Stabilité).
+  Les images en trop ne sont pas traitées du tout. Mesuré à 16 img/s : 38 %, 132 W ; le
+  mouvement est un peu moins fluide. « toutes » (tout à droite) : chaque image du téléphone.
+  À savoir : les effets limitent déjà la sortie à leur propre cadence (« fps » des effets) ;
+  traiter plus d'images que cette cadence ne sert à rien.
+  Essayés puis retirés (mesuré avec des réglages complets : le compteur de charge n'a pas bougé, ces
+  modèles tournant pendant que les gros calculent déjà) : détourage et profondeur des filtres
+  une image sur deux, détecteur d'occlusion une image sur deux, TensorRT au niveau
+  d'optimisation 5 (un peu plus lent). « Détection toutes les 2 images » n'aide pas non plus.
+  Pixel boost : le modèle travaille toujours en 256 px (HyperSwap) ; 256 est donc le plus
+  léger possible. Descendre à 128 ne ferait que flouter le visage, sans calcul en moins.
+  Ce qui fait la charge restante : expressions LivePortrait (~ un tiers), remplacement, XSeg,
+  pour chaque image traitée. Leviers : « Images/s traitées par l'IA », « Expression » à 0.
+  Côté Windows : baisser la limite de puissance / la tension de la carte (MSI Afterburner)
+  réduit consommation et chaleur sans rien changer ici.
+
+DÉSINSTALLER
+  Supprimer le dossier de PhoneCam (ADB et clés ADB compris : Programme\tools\, Programme\data\).
+  Restent hors du dossier, à retirer à la main si voulu :
+   - les règles du pare-feu Windows pour python (Wi-Fi) ;
+   - OBS Studio (Paramètres → Applications) ;
+   - sur le téléphone : Options pour les développeurs → « Révoquer les autorisations de
+     débogage USB », puis désactiver les options pour les développeurs.

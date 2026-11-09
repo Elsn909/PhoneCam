@@ -2,3 +2,6 @@
 *.bat -text
 *.apk binary
 *.whl binary
+*.pth binary
+*.index binary
+*.[0-9][0-9][0-9] binary

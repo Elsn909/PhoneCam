@@ -1,7 +1,8 @@
 # PhoneCam
 
-Remplacement de visage en direct, de la webcam du PC ou d'un téléphone Android vers une caméra
-virtuelle, et un Studio pour retoucher des vidéos.
+Remplacement de visage et changeur de voix en direct, de la webcam du PC ou d'un téléphone Android
+vers une caméra virtuelle et un micro virtuel, et un Studio pour retoucher des vidéos, des images et
+des sons après coup.
 
 ## Le moteur : FaceFusion
 
@@ -29,14 +30,25 @@ micro de téléphone simulé. Tout tourne sur la carte graphique avec TensorRT.
 [Deep-Live-Cam](https://github.com/hacksider/Deep-Live-Cam) reste en dessous pour la détection des
 visages (InsightFace), le modèle inswapper 128 et les améliorateurs GFPGAN / GPEN.
 
+## La voix
+
+- **Direct** : ta voix transformée en temps réel par un modèle RVC (v1 / v2), avec **Smart** (seule
+  la voix entre dans le modèle : clavier, souffle, ventilateur restent dehors), voix vivante,
+  effets de studio (égaliseur, compresseur, de-esser) et réalisme d'un micro de smartphone.
+- **Studio** : un fichier audio, un enregistrement au micro ou le son d'une vidéo, transformé avec
+  une voix et les mêmes effets, à écouter en A/B puis à exporter (WAV, FLAC, MP3, M4A, ou la vidéo
+  avec la nouvelle voix).
+- **Deux voix fournies** (dossier `Voix`), prêtes dès l'installation ; on peut y ranger les siennes
+  (un sous-dossier par voix, avec son `.pth` et son `.index`).
+
 ## Il faut
 
 - Windows 10 ou 11 (64 bits)
 - Une carte graphique NVIDIA récente (RTX conseillée), pilote à jour
-- Environ 20 Go libres et Internet pour l'installation (environ 8 Go téléchargés)
+- Environ 20 Go libres et Internet pour l'installation (environ 8,5 Go téléchargés)
 
-Tout le reste est installé par `Installer.bat` : Python 3.12, les paquets Python, les modèles,
-OBS Studio (pour sa caméra virtuelle), ffmpeg et adb.
+Tout le reste est installé par `Installer.bat` : Python 3.12, les paquets Python, les modèles
+(visage et voix), OBS Studio (pour sa caméra virtuelle), ffmpeg et adb.
 
 ## Installer
 
@@ -49,45 +61,57 @@ OBS Studio (pour sa caméra virtuelle), ffmpeg et adb.
 
 ## Lancer
 
-Double-clic sur **`PhoneCam\Lancer PhoneCam.bat`**.
+Double-clic sur **`Lancer PhoneCam.bat`**. Au premier lancement, un accueil explique par où commencer.
 
 - Le premier lancement du moteur Plus prépare des moteurs TensorRT pour la carte graphique :
   plusieurs minutes, une seule fois.
 - Source vidéo : page **Connexion → Source vidéo**, puis **Webcam du PC** ou **Téléphone**.
 - Les autres logiciels (Snapchat, Discord, OBS…) prennent la caméra **« OBS Virtual Camera »**.
-- Tout le reste est expliqué dans `PhoneCam\LISEZMOI.txt`.
+- Tout le reste est expliqué dans `LISEZMOI.txt`.
 
 ## Téléphone (facultatif)
 
-Android 9 ou plus récent. Installer **`PhoneCam.apk`** (dans ce dossier) sur le téléphone :
+Android 9 ou plus récent. Installer **`Appli Android\PhoneCam.apk`** sur le téléphone :
 
 - le copier sur le téléphone et l'ouvrir, en autorisant l'installation d'applis inconnues ;
-- ou, avec le câble et le débogage USB activé : `tools\platform-tools\adb.exe install PhoneCam.apk`.
+- ou, avec le câble et le débogage USB activé :
+  `Programme\tools\platform-tools\adb.exe install "Appli Android\PhoneCam.apk"`.
 
 Puis **Connexion → Connecter par câble**, ou scanner le QR code en Wi-Fi.
 
-## Micro simulé (facultatif)
+## Micro simulé et voix transformée (facultatif)
 
-Installer [VB-Cable A+B](https://vb-audio.com/Cable/) (entrées « CABLE-A » et « CABLE-B »).
+Installer [VB-Cable A+B](https://vb-audio.com/Cable/) (entrées « CABLE-A » et « CABLE-B ») : les
+autres logiciels prennent « CABLE-B Output » comme micro.
 
 ## Contenu
 
 | Dossier | Contenu |
 | --- | --- |
-| `PhoneCam\` | code source de PhoneCam (Python) et sa page web |
-| `PhoneCam\android\` | code source de l'appli Android (Android Studio, ou JDK 17 + SDK : `gradle assembleDebug`) |
-| `PhoneCam.apk` | l'appli Android déjà compilée |
-| `app\` | Deep-Live-Cam (détection, inswapper, GFPGAN / GPEN) ; `Lancer Deep-Live-Cam.bat` ouvre son interface d'origine |
-| `wheels\` | insightface déjà compilé (évite d'installer Visual Studio) |
-| `requirements.txt` | versions exactes des paquets Python |
+| `Lancer PhoneCam.bat` | le logiciel |
+| `Installer.bat` | l'installation (une fois) |
+| `LISEZMOI.txt` | le mode d'emploi complet |
+| `Voix\` | les voix du changeur de voix (deux fournies) |
+| `Presets\` | les presets fournis (« Par défaut », « Visage Finnyzyy ») |
+| `Captures\` | créé à l'installation : photos, enregistrements, captures de diagnostic |
+| `Appli Android\` | l'appli du téléphone, déjà compilée |
+| `Programme\` | le moteur : code de PhoneCam, Deep-Live-Cam, paquets ; rien à y toucher |
 
-Créés par l'installateur et jamais envoyés en ligne : `venv\` (Python), `data\` (modèles, réglages,
-caches), `tools\` (adb). Désinstaller : supprimer le dossier. Python, OBS et ffmpeg se désinstallent
-depuis les Paramètres de Windows.
+Dans `Programme\` : `PhoneCam\` (code Python, page web, et `android\` : code de l'appli, à compiler
+avec Android Studio ou JDK 17 + SDK : `gradle assembleDebug`), `app\` (Deep-Live-Cam : détection,
+inswapper, GFPGAN / GPEN ; `Lancer Deep-Live-Cam.bat` ouvre son interface d'origine, facultatif),
+`wheels\` (insightface déjà compilé, évite d'installer Visual Studio), `requirements.txt` (versions
+exactes des paquets Python).
+
+Créés par l'installateur et jamais envoyés en ligne : `Programme\venv\` (Python), `Programme\data\`
+(modèles, réglages, caches), `Programme\tools\` (adb). Désinstaller : supprimer le dossier. Python,
+OBS et ffmpeg se désinstallent depuis les Paramètres de Windows.
 
 ## Licences
 
-Deep-Live-Cam est sous licence AGPL-3.0 (`app\LICENSE`). Les modèles viennent de FaceFusion
+Deep-Live-Cam est sous licence AGPL-3.0 (`Programme\app\LICENSE`). Les modèles viennent de FaceFusion
 (github.com/facefusion/facefusion-assets) et de Deep-Live-Cam, chacun sous sa propre licence ;
-plusieurs (HyperSwap, inswapper…) sont réservés à un usage non commercial. Ne s'en servir qu'avec l'accord des
-personnes dont on utilise le visage.
+plusieurs (HyperSwap, inswapper…) sont réservés à un usage non commercial. Voix : RVC
+(Retrieval-based-Voice-Conversion-WebUI, MIT), RMVPE et HuBERT / ContentVec (téléchargés depuis
+huggingface.co/lj1995/VoiceConversionWebUI), Silero VAD (MIT), GTCRN (MIT). Ne s'en servir qu'avec
+l'accord des personnes dont on utilise le visage ou la voix.

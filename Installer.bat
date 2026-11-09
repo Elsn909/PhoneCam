@@ -1,9 +1,10 @@
 @echo off
-rem Installe PhoneCam sur ce PC : environnement Python isole dans le dossier "venv", modeles dans "data".
+rem Installe PhoneCam sur ce PC : environnement Python isole dans "Programmeenv", modeles dans "Programme\data".
 rem A lancer une seule fois (le relancer reprend ce qui manque). Il faut Internet (environ 8 Go) et une carte NVIDIA.
 setlocal
-set "ROOT=%~dp0"
-set "ROOT=%ROOT:~0,-1%"
+set "TOP=%~dp0"
+set "TOP=%TOP:~0,-1%"
+set "ROOT=%TOP%\Programme"
 cd /d "%ROOT%"
 set "PYTHONNOUSERSITE=1"
 set "PYTHONIOENCODING=utf-8"
@@ -46,7 +47,7 @@ rem insightface est fourni deja compile : sinon il faudrait Visual Studio Build 
 "%VPY%" -m pip install --no-cache-dir -r "%ROOT%\requirements.txt" --extra-index-url https://download.pytorch.org/whl/cu128 || goto :fail
 
 echo.
-echo === 4/6  Modeles (environ 3,5 Go, depuis leurs sources officielles)
+echo === 4/6  Modeles (environ 4 Go, depuis leurs sources officielles) et voix fournies
 rem Comme les lanceurs : "~" = data\home, pour que les modeles d'insightface restent dans le dossier.
 if not exist "%ROOT%\data\home" mkdir "%ROOT%\data\home"
 setlocal
@@ -79,9 +80,10 @@ echo === 6/6  Verifications
 "%VPY%" -c "import torch, onnxruntime, insightface, PySide6, cv2; print('Carte graphique :', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'AUCUNE carte NVIDIA vue par PyTorch'); print('onnxruntime :', ', '.join(onnxruntime.get_available_providers()))"
 "%VPY%" -c "import cv2, sys; from cv2_enumerate_cameras import enumerate_cameras as e; sys.exit(0 if any(c.name == 'OBS Virtual Camera' for c in e(cv2.CAP_DSHOW)) else 1)" >nul 2>&1 || echo [!] OBS Virtual Camera pas encore visible : redemarrer le PC apres l'installation d'OBS.
 "%VPY%" -c "import sounddevice as s, sys; sys.exit(0 if any('CABLE-A' in d['name'] for d in s.query_devices()) else 1)" >nul 2>&1 || echo [i] VB-Cable A+B absent : seulement utile pour le micro simule ^(voir LISEZMOI.txt^).
+if not exist "%TOP%\Captures" mkdir "%TOP%\Captures"
 rmdir /s /q "%TEMP%" 2>nul
 echo.
-echo Installation terminee. Lance "PhoneCam\Lancer PhoneCam.bat".
+echo Installation terminee. Lance "Lancer PhoneCam.bat".
 pause
 exit /b 0
 
