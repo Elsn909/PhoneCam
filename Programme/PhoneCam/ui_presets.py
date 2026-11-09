@@ -119,9 +119,41 @@ class PresetHub:
     def apply_default(self):
         self.apply(self.views[0].group() if self.views else "", DEFAULT)
 
+    def _photos_found(self, preset):
+        """Photos du visage gardées par le preset, retrouvées si elles ont été déplacées. Si aucune n'existe
+        plus, le visage en place est gardé : sinon le preset l'enlève, et rien ne remplace plus le visage."""
+        face = preset.get("visage")
+        if not face or not (face.get("source") or face.get("source_more")):
+            return preset
+        dirs = []                      # où sont les photos en place : souvent le même dossier, renommé ou déplacé
+        live_s = getattr(self.live, "settings", {})
+        studio = self.spaces[1]
+        for p in [live_s.get("source")] + list(live_s.get("source_more", [])) + list(getattr(studio, "photos", [])):
+            d = os.path.dirname(p) if p else ""
+            if d and d not in dirs:
+                dirs.append(d)
+
+        def locate(p):
+            if not p or os.path.isfile(p):
+                return p
+            for d in dirs:
+                q = os.path.join(d, os.path.basename(p))
+                if os.path.isfile(q):
+                    return q.replace("\\", "/")
+            return ""
+
+        photos = [q for q in (locate(p) for p in [face.get("source")] + list(face.get("source_more", []))) if q]
+        face = {k: v for k, v in face.items() if k not in ("source", "source_more")}
+        if photos:
+            face["source"], face["source_more"] = photos[0], photos[1:]
+        else:
+            self.live.toast("Photos du visage de ce preset introuvables : le visage en place est gardé")
+        return dict(preset, visage=face)
+
     def apply(self, group, name):
+        preset = self._photos_found(self.get(group, name))
         for space in self.spaces:
-            space.load_preset(self.get(group, name))
+            space.load_preset(preset)
         self.active[:] = [group, name]
         self.refresh(group)
         self.changed()

@@ -485,6 +485,7 @@ class StudioSpace(QWidget):
         for section, values in preset.items():
             if section == "visage":
                 photos = ([values["source"]] if values.get("source") else []) + list(values.get("source_more", []))
+                photos = [p for p in photos if os.path.isfile(p)]     # une photo disparue n'enlève pas le visage en place
                 if photos and photos != self.photos:
                     self.photos[:] = photos
                     self._photos_changed()
