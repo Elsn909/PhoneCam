@@ -281,7 +281,8 @@ class VoicePage:
             it.setData(Qt.UserRole, path)
             it.setToolTip(path)
             self.list.addItem(it)
-        self.lib_label.setText((folders[0] if len(folders) == 1 else f"{len(folders)} dossiers") + f"  ·  {len(found)} voix"
+        self.lib_label.setText((f"Dossier « {os.path.basename(folders[0]) or folders[0]} »" if len(folders) == 1
+                                else f"{len(folders)} dossiers") + f"  ·  {len(found)} voix"
                                if folders else f"{len(found)} voix favorites (aucun dossier)")
         self.lib_label.setToolTip("\n".join(folders))
 

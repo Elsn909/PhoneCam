@@ -58,10 +58,14 @@ def voice_models():
 
 
 def join_voices():
-    """Recolle les morceaux des voix fournies (Voix\\…\\x.index.001, .002…) en un seul fichier."""
+    """Recolle les morceaux des voix fournies (Voix\\…\\x.index.001, .002…) en un seul fichier.
+    Dossier de développement (suivi par git) : les morceaux sont gardés, le fichier recollé est ignoré."""
     top = os.path.join(os.path.dirname(ROOT), "Voix")
+    dev = os.path.isdir(os.path.join(os.path.dirname(ROOT), ".git"))
     for first in glob.glob(os.path.join(top, "**", "*.001"), recursive=True):
         base = first[:-4]
+        if dev and os.path.isfile(base):
+            continue
         parts = sorted(glob.glob(glob.escape(base) + ".[0-9][0-9][0-9]"))
         tmp = base + ".part"
         with open(tmp, "wb") as out:
@@ -69,6 +73,8 @@ def join_voices():
                 with open(p, "rb") as f:
                     shutil.copyfileobj(f, out, 1 << 20)
         os.replace(tmp, base)
+        if dev:
+            continue
         for p in parts:
             os.remove(p)
         print(f"  voix prête : {os.path.relpath(base, top)}")
