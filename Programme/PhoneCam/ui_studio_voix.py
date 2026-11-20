@@ -456,15 +456,6 @@ class StudioVoice:
         self._ck(f, "whisper", "Chuchotements seuls (sans voix autour)", "Moins strict : quelques souffles peuvent passer.")
         self._sl(f, "voicing", "Confiance de la hauteur", 1, 60, lambda x: f"{x} %",
                  "Plus haut : seules les voyelles bien nettes reçoivent une hauteur.")
-        f.section("Voix vivante", key="sv-vivante", open_=False)
-        self._ck(f, "lift_on", "Relever le ton quand la voix est basse",
-                 "Sous « Hauteur normale », la voix est remontée : enjouée plutôt qu'éteinte.")
-        self._sl(f, "lift_ref", "Hauteur normale", 70, 300, lambda x: f"{x} Hz")
-        self._sl(f, "lift_floor", "Seuil (sous la hauteur normale)", 0, 60, lambda x: f"{x / 10:.1f} demi-ton")
-        self._sl(f, "lift_amount", "Remonter de", 0, 100, lambda x: f"{x} % de l'écart")
-        self._sl(f, "lively", "Expressivité", 0, 80, lambda x: f"+{x} %")
-        self._ck(f, "lively_always", "Expressivité tout le temps", "Sinon, pleine seulement quand le ton est relevé.")
-        self._sl(f, "lift_bright", "Clarté ajoutée", 0, 100, lambda x: f"{x} %")
         f.note("Le son est transformé par blocs de 0,5 s avec 4 s de contexte (plus stable que le direct), "
                "puis recalé exactement sur l'original : même durée, synchro avec la vidéo.")
         for w in self.voice_widgets:

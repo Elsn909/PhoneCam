@@ -169,5 +169,49 @@ def prepare_labels(log=print):
     log("Analyseur par zones préparé.")
 
 
+LOT = "_lot"            # suffixe du modèle dérivé qui traite plusieurs images à la fois
+LOT_VERSION = "1"
+
+
+def prepare_batch(name, log=print):
+    """hyperswap_* → hyperswap_*_lot : le même modèle, qui accepte plusieurs images d'un coup. Les
+    passes du pixel boost (4, 9 ou 16) font alors un seul calcul sur la carte graphique au lieu de
+    4, 9 ou 16 à la suite (mesuré en 768 px : 14 ms au lieu de 23 à 35).
+    Le modèle d'origine fixe le lot à 1 dans ses changements de forme ([1, C, 1, 1]) : remplacés par
+    « même lot que l'entrée » ([0, C, 1, 1]). Rien d'autre ne change, les poids sont les mêmes."""
+    out_path = os.path.join(MODELS_DIR, name + LOT + ".onnx")
+    stamp = out_path + ".version"
+    if os.path.isfile(out_path) and os.path.isfile(stamp) and open(stamp).read() == LOT_VERSION:
+        return out_path
+    import onnx
+    from onnx import numpy_helper
+
+    log(f"Préparation de {name} pour le pixel boost…")
+    m = onnx.load(os.path.join(MODELS_DIR, name + ".onnx"))
+    shapes = {n.input[1] for n in m.graph.node if n.op_type == "Reshape"}
+    for n in m.graph.node:
+        if n.op_type == "Constant" and n.output[0] in shapes:
+            for at in n.attribute:
+                if at.name == "value":
+                    a = numpy_helper.to_array(at.t).copy()
+                    if a.ndim == 1 and a.size and a[0] == 1:
+                        a[0] = 0
+                        at.t.CopyFrom(numpy_helper.from_array(a))
+    for i in m.graph.initializer:
+        if i.name in shapes:
+            a = numpy_helper.to_array(i).copy()
+            if a.ndim == 1 and a.size and a[0] == 1:
+                a[0] = 0
+                i.CopyFrom(numpy_helper.from_array(a, i.name))
+    for v in list(m.graph.input) + list(m.graph.output):
+        v.type.tensor_type.shape.dim[0].dim_param = "lot"
+    del m.graph.value_info[:]
+    onnx.save(m, out_path + ".part")
+    os.replace(out_path + ".part", out_path)
+    with open(stamp, "w") as f:
+        f.write(LOT_VERSION)
+    return out_path
+
+
 if __name__ == "__main__":
     download()

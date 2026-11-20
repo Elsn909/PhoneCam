@@ -28,7 +28,6 @@ from . import smart
 from .dsp import Resampler
 from .graph import Graphs
 from .reglages import DEFAULTS, RESTART_KEYS, find_index  # noqa: F401
-from .vivante import Lively
 
 try:
     from tour_gpu import voice_turn
@@ -114,8 +113,6 @@ class VoiceChanger:
         self.speaking = False
         self.last_silent = False
         self.skipped = 0
-        self.lively = Lively()
-        self.lift_shift = 0.0
         self._cfg_key = None
         self._acc = np.zeros(0, np.float32)
         self._t_hist = []
@@ -194,7 +191,11 @@ class VoiceChanger:
         self.sola_buf = min(self.cross, 4 * ZC)
         self.search = ZC
         self.extra = q(p["extra"] / 10)
-        total = self.extra + self.cross + self.search + self.block
+        # Avance : ce qui est joué s'arrête « ahead » avant la fin du son connu. La fin de chaque bloc
+        # (celle qui sert au raccord avec le suivant) est alors calculée avec un peu de la suite, comme
+        # le reste, au lieu d'être devinée au bord.
+        self.ahead = q(p.get("ahead_ms", 0) / 1000)
+        total = self.extra + self.cross + self.search + self.block + self.ahead
         self.n = total // ZC
         self.n16 = total // 3
         self.b16 = self.block // 3
@@ -228,7 +229,6 @@ class VoiceChanger:
         self.up = Resampler(m.sr, SR, dev)
         self._formant = {}
         self._acc = np.zeros(0, np.float32)
-        self.lively.reset()
         self._cfg_key = self._key()
         self.skipped = 0
 
@@ -237,7 +237,7 @@ class VoiceChanger:
         if self.model is None:
             return 0.0
         p = self.p
-        d = p["block"] * 10 + p["crossfade"] * 10 + 10 + 81 / 48 + p["margin_ms"]
+        d = p["block"] * 10 + p["crossfade"] * 10 + 10 + 81 / 48 + p["margin_ms"] + p.get("ahead_ms", 0) // 10 * 10
         if p["denoise"] and p["smart"]:
             d += getattr(self.denoiser, "delay", 384) / 16
         return d + self.ms
@@ -346,10 +346,6 @@ class VoiceChanger:
                 f0u = smart.smart_f0(self.f0_raw, self.conf, self.mask, p["voicing"] / 100)
             else:
                 f0u = smart.classic_f0(np.where(self.conf > 0.03, self.f0_raw, 0))
-            if p["lift_on"]:            # voix vivante : ton bas relevé, mélodie élargie
-                f0u = self.lively.pitch(f0u, p, self.skip, self.skip + self.ret, self.bf)
-            self.lift_shift = self.lively.shift if p["lift_on"] else 0.0
-            self.cur_hz = self.lively.cur_hz
             f0u = f0u * 2 ** ((p["pitch"] - p["formant"] / 10) / 12)
             mel = 1127 * np.log(1 + f0u / 700)
             coarse = np.where(mel > 0, (mel - MEL_MIN) * 254 / (MEL_MAX - MEL_MIN) + 1, 1)
@@ -407,13 +403,15 @@ class VoiceChanger:
         head = out[None, None, :n]
         num = F.conv1d(head, self.sola[None, None, :])
         den = torch.sqrt(F.conv1d(head ** 2, self.den_kernel) + 1e-8)
-        off = int(torch.argmax(num[0, 0] / den[0, 0]))
+        score = num[0, 0] / den[0, 0]
+        off = int(torch.argmax(score))
+        # Ressemblance du raccord (1 = le début de ce bloc prolonge exactement la fin du précédent).
+        tail = float(torch.linalg.vector_norm(self.sola))
+        self.join_sim, self.join_level = float(score[off]) / (tail + 1e-8), tail
         out = out[off:]
         out[:self.sola_buf] = out[:self.sola_buf] * self.fade_in + self.sola * self.fade_out
         self.sola[:] = out[self.block:self.block + self.sola_buf]
         y = out[:self.block].clamp(-1, 1).cpu().numpy()
-        if p["lift_on"] and p["lift_bright"] > 0:
-            y = np.clip(self.lively.brighten(y, p), -1, 1)
         if self.last_silent:
             y[:] = 0.0                          # silence exact (PhoneCam peut le raccourcir)
             self.sola.zero_()
@@ -479,7 +477,6 @@ class VoiceChanger:
         t = np.arange(self.block * 4) / SR
         x = (0.2 * np.sin(2 * np.pi * 180 * t) * (1 + 0.3 * np.sin(2 * np.pi * 3 * t))).astype(np.float32)
         smart_on, self.p["smart"] = self.p["smart"], False
-        lift_on, self.p["lift_on"] = self.p["lift_on"], False      # le son de test n'est pas ta voix
         try:
             with self._ctx():
                 for i in range(4):
@@ -497,7 +494,6 @@ class VoiceChanger:
                 self.stream.synchronize()
         finally:
             self.p["smart"] = smart_on
-            self.p["lift_on"] = lift_on
 
 
 def _search(m, q):

@@ -174,7 +174,9 @@ class Effects:
                                                  "exposure", "contrast", "jpeg", "glitch", "motion_blur",
                                                  "adaptive", "vignette")) or grade_active(p)
 
-    def apply(self, frame: np.ndarray) -> np.ndarray:
+    def apply(self, frame: np.ndarray, keep_size: bool = True) -> np.ndarray:
+        """keep_size=False (direct) : l'image reste à la résolution du flux ; la sortie l'agrandit une
+        seule fois à sa taille (au lieu de deux agrandissements de suite)."""
         t0 = time.perf_counter()
         if not self.active():
             self.ms = 0.0
@@ -253,7 +255,7 @@ class Effects:
             if ok:
                 img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
 
-        if (sw, sh) != (w, h):
+        if keep_size and (sw, sh) != (w, h):
             img = cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)
         self.ms = (time.perf_counter() - t0) * 1000
         return img

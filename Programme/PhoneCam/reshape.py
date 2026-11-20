@@ -27,21 +27,30 @@ DEFAULTS = {  # forme : -100…100, maquillage : 0…100 ; 0 = désactivé
     "nose": 0,          # taille du nez
     "nose_width": 0,    # nez plus fin (négatif : plus large)
     "nose_lift": 0,     # bout du nez relevé (négatif : tombant)
+    "nose_bridge": 0,   # arête du nez plus fine (négatif : plus large)
+    "temples": 0,       # haut du visage (tempes) plus étroit (négatif : plus large)
+    "jaw_width": 0,     # mâchoire plus étroite (négatif : plus carrée)
+    "chin_width": 0,    # menton plus fin (négatif : plus large)
     # yeux
     "eyes": 0,          # taille des yeux
     "eye_distance": 0,  # écart entre les yeux
     "eye_tilt": 0,      # coins extérieurs relevés (« yeux de chat »)
+    "eye_open": 0,      # yeux plus ouverts, en hauteur seulement (négatif : plus fermés)
     "brow_height": 0,   # sourcils plus hauts (négatif : plus bas)
     "brow_tilt": 0,     # queue des sourcils relevée (négatif : air triste)
     # bouche
     "mouth": 0,         # largeur de la bouche
     "lips": 0,          # volume des lèvres
+    "lip_upper": 0,     # lèvre supérieure plus pleine (négatif : plus fine)
+    "lip_lower": 0,     # lèvre inférieure plus pleine (négatif : plus fine)
     "smile": 0,         # coins de la bouche relevés
     "philtrum": 0,      # bouche rapprochée du nez (négatif : éloignée)
     # corps
     "body": 0,          # affiner le cou et le buste (négatif : plus large)
     # maquillage et peau
     "skin_smooth": 0,   # lissage de la peau
+    "skin_texture": 0,  # grain de peau (pores) gardé par-dessus le lissage
+    "matte": 0,         # matifier : reflets brillants du front, du nez et des joues atténués
     "glow": 0,          # éclat du teint
     "blush": 0,         # blush sur les joues
     "lip_color": 0,     # intensité du rouge à lèvres
@@ -64,31 +73,39 @@ DEFAULTS = {  # forme : -100…100, maquillage : 0…100 ; 0 = désactivé
     "hrffa": 0,         # repères HRFFA (FaceFusion, tiennent mieux de profil) au lieu d'InsightFace
 }
 SHAPE_KEYS = ["face_size", "slim", "cheekbones", "jaw", "chin", "forehead", "nose", "nose_width", "nose_lift",
-              "eyes", "eye_distance", "eye_tilt", "brow_height", "brow_tilt", "mouth", "lips", "smile", "philtrum", "body"]
-MAKEUP_KEYS = ["skin_smooth", "glow", "blush", "lip_color", "teeth", "under_eye", "tan", "freckles", "contour",
+              "eyes", "eye_distance", "eye_tilt", "brow_height", "brow_tilt", "mouth", "lips", "smile", "philtrum", "body",
+              "nose_bridge", "temples", "jaw_width", "chin_width", "eye_open", "lip_upper", "lip_lower"]
+MAKEUP_KEYS = ["skin_smooth", "skin_texture", "matte", "glow", "blush", "lip_color", "teeth", "under_eye", "tan", "freckles", "contour",
                "highlight", "eyeshadow", "eyeliner", "brow_color", "iris", "eye_bright"]
 SHADE_KEYS = ["lip_shade", "eyeshadow_shade", "iris_shade"]
-SHAPE_GROUPS = [  # titre, [(clé, libellé, minimum)]  ; forme : −100…100, maquillage : 0…100
-    ("Visage", [("face_size", "Taille du visage", -100), ("slim", "Affiner les joues", -100),
-                ("cheekbones", "Pommettes", -100), ("jaw", "Mâchoire en V", -100),
-                ("chin", "Menton (longueur)", -100), ("forehead", "Front (hauteur)", -100),
-                ("nose", "Taille du nez", -100), ("nose_width", "Affiner le nez", -100),
-                ("nose_lift", "Bout du nez relevé", -100)]),
-    ("Yeux", [("eyes", "Taille des yeux", -100), ("eye_distance", "Écart des yeux", -100),
-              ("eye_tilt", "Yeux de chat (coins relevés)", -100), ("brow_height", "Hauteur des sourcils", -100),
-              ("brow_tilt", "Sourcils relevés", -100)]),
+SHAPE_GROUPS = [  # titre de la section, [(clé, libellé, minimum)]  ; forme : −100…100, maquillage : 0…100
+    ("Contour du visage", [("face_size", "Taille du visage", -100), ("slim", "Affiner les joues", -100),
+                           ("temples", "Affiner les tempes", -100), ("cheekbones", "Pommettes", -100),
+                           ("jaw", "Mâchoire en V", -100), ("jaw_width", "Affiner la mâchoire", -100),
+                           ("chin", "Menton (longueur)", -100), ("chin_width", "Affiner le menton", -100),
+                           ("forehead", "Front (hauteur)", -100)]),
+    ("Nez", [("nose", "Taille du nez", -100), ("nose_width", "Affiner le nez", -100),
+             ("nose_bridge", "Affiner l'arête du nez", -100), ("nose_lift", "Bout du nez relevé", -100)]),
+    ("Yeux", [("eyes", "Taille des yeux", -100), ("eye_open", "Ouverture des yeux", -100),
+              ("eye_distance", "Écart des yeux", -100),
+              ("eye_tilt", "Yeux de chat (coins relevés)", -100)]),
+    ("Sourcils", [("brow_height", "Hauteur des sourcils", -100), ("brow_tilt", "Sourcils relevés", -100)]),
     ("Bouche", [("mouth", "Largeur de la bouche", -100), ("lips", "Volume des lèvres", -100),
+                ("lip_upper", "Lèvre supérieure", -100), ("lip_lower", "Lèvre inférieure", -100),
                 ("smile", "Sourire", -100), ("philtrum", "Bouche plus proche du nez", -100)]),
     ("Corps", [("body", "Affiner le cou et le buste", -100)]),
-    ("Maquillage et peau", [("skin_smooth", "Lissage de la peau", 0), ("glow", "Éclat du teint", 0),
-                            ("under_eye", "Atténuer les cernes", 0), ("tan", "Teint hâlé", 0),
-                            ("freckles", "Taches de rousseur", 0), ("contour", "Contouring", 0),
-                            ("highlight", "Highlighter", 0), ("blush", "Blush", 0),
-                            ("lip_color", "Rouge à lèvres", 0), ("teeth", "Dents plus blanches", 0)]),
+    ("Peau", [("skin_smooth", "Lissage de la peau", 0), ("skin_texture", "Grain de peau gardé (avec le lissage)", 0),
+              ("matte", "Matifier (reflets brillants)", 0), ("glow", "Éclat du teint", 0),
+              ("under_eye", "Atténuer les cernes", 0), ("tan", "Teint hâlé", 0),
+              ("freckles", "Taches de rousseur", 0)]),
+    ("Maquillage", [("contour", "Contouring", 0), ("highlight", "Highlighter", 0), ("blush", "Blush", 0),
+                    ("lip_color", "Rouge à lèvres", 0), ("teeth", "Dents plus blanches", 0)]),
     ("Regard", [("eye_bright", "Regard lumineux", 0), ("iris", "Couleur des yeux", 0),
                 ("eyeshadow", "Fard à paupières", 0), ("eyeliner", "Eyeliner", 0),
                 ("brow_color", "Sourcils plus marqués", 0)]),
 ]
+# Onglet de chaque section (les autres sections ont leur propre onglet, du même nom).
+SHAPE_TABS = {"Contour du visage": "Visage", "Nez": "Visage", "Sourcils": "Yeux", "Maquillage": "Peau"}
 SHAPE_PRESETS = {
     "Aucun": {},
     "Naturel": {"slim": 25, "jaw": 15, "eyes": 15, "nose": -15, "skin_smooth": 30, "glow": 15},
@@ -366,6 +383,15 @@ class FaceReshape:
         if p["chin"]:
             w = np.exp(-(xr / (0.45 * ed)) ** 2) * (t > 0.6)
             vec += uy * (w * 0.2 * ed3 * p["chin"] / 100)[:, None]
+        if p["temples"]:                       # haut du contour, au niveau des yeux
+            w = np.exp(-(t / 0.16) ** 2)
+            vec += -side * ux * gh * (w * 0.10 * p["temples"] / 100)[:, None]
+        if p["jaw_width"]:                     # angle de la mâchoire, sans toucher aux joues ni au menton
+            w = np.exp(-((t - 0.74) / 0.17) ** 2) * np.clip(np.abs(xr) / (0.35 * ed), 0, 1)
+            vec += -side * ux * gh * (w * 0.13 * p["jaw_width"] / 100)[:, None]
+        if p["chin_width"]:                    # le menton se resserre vers la ligne médiane
+            w = np.clip((t - 0.72) / 0.22, 0, 1) ** 2 * np.exp(-(xr / (0.75 * ed)) ** 2)
+            vec += -ux * (xr * w * 0.45 * p["chin_width"] / 100)[:, None]
 
         # --- zone de calcul : le visage + le front + une marge où tout retombe à zéro
         forehead = eye_c - uy * 1.3 * ed3
@@ -402,6 +428,13 @@ class FaceReshape:
             d = P - c
             D[:] -= v * _falloff((d * d).sum(-1), r)[..., None]
 
+        def stretch(c, axis, r, s, half=0):   # étire (s > 0) ou resserre le long d'un axe, autour de c
+            d = P - c
+            a = d @ axis
+            if half:                          # d'un seul côté de c (half = ±1) : l'autre ne bouge pas
+                a = np.where(a * half > 0, a, 0)
+            D[:] -= axis * (a * s * _falloff((d * d).sum(-1), r))[..., None]
+
         # Côtés gauche / droit de l'image : poids de largeur visible (1 de face) ; les rayons
         # suivent moins fort.
         sl, sr = 0.5 + 0.5 * g_l, 0.5 + 0.5 * g_r
@@ -410,6 +443,9 @@ class FaceReshape:
         if p["eyes"]:
             for e, k in ((le, sl), (re, sr)):
                 bulge(e, 0.42 * ed3 * k, 0.4 * p["eyes"] / 100)
+        if p["eye_open"]:
+            for e, k in ((le, sl), (re, sr)):
+                stretch(e, uy, 0.34 * ed3 * k, 0.45 * p["eye_open"] / 100)
         if p["eye_distance"]:
             s = 0.07 * ed * p["eye_distance"] / 100
             push(le, -ux * s * g_l, 0.4 * ed3 * sl)
@@ -426,6 +462,11 @@ class FaceReshape:
             push(nose + ux * 0.2 * ed * g_r, -ux * s * g_r, 0.3 * ed3 * sr)
         if p["nose_lift"]:
             push(nose + uy * 0.08 * ed3, -uy * 0.06 * ed3 * p["nose_lift"] / 100, 0.26 * ed3)
+        if p["nose_bridge"]:
+            bridge = eye_c + (nose - eye_c) * 0.45
+            s = 0.045 * ed * p["nose_bridge"] / 100
+            push(bridge - ux * 0.14 * ed * g_l, ux * s * g_l, 0.24 * ed3 * sl)
+            push(bridge + ux * 0.14 * ed * g_r, -ux * s * g_r, 0.24 * ed3 * sr)
         if p["brow_height"] or p["brow_tilt"]:
             for brow, sgn, g, k in ((pts[5 + 43:5 + 52], -1, g_l, sl), (pts[5 + 97:5 + 106], 1, g_r, sr)):
                 bc = brow.mean(0)
@@ -440,6 +481,13 @@ class FaceReshape:
         if p["lips"]:
             mc = pts[5 + 52:5 + 72].mean(0)
             bulge(mc, 0.42 * ed3, 0.3 * p["lips"] / 100)
+        if p["lip_upper"] or p["lip_lower"]:
+            # Chaque lèvre s'épaissit à partir de la ligne de la bouche, qui ne bouge pas.
+            line = pts[5 + 52:5 + 72].mean(0)
+            if p["lip_upper"]:
+                stretch(line, uy, 0.34 * ed3, 0.55 * p["lip_upper"] / 100, -1)
+            if p["lip_lower"]:
+                stretch(line, uy, 0.34 * ed3, 0.55 * p["lip_lower"] / 100, 1)
         if p["smile"]:
             s = 0.1 * ed3 * p["smile"] / 100
             push(ml, (-uy - ux * 0.3 * g_l) * s, 0.35 * ed3 * sl)
@@ -562,6 +610,41 @@ class FaceReshape:
         def feather(mk, sigma):
             return cv2.GaussianBlur(mk.astype(np.float32) / 255, (0, 0), max(0.5, sigma))
 
+        # Masques larges (peau, teint, blush) : dessinés en petit puis agrandis — ils sont très flous,
+        # le résultat est le même pour une fraction du temps (les dilatations et les grands flous à
+        # pleine taille prenaient 10 ms par image). Les zones retirées (yeux, sourcils, bouche) sont
+        # agrandies en écartant leurs points du centre, au lieu de dilater l'image.
+        ms = min(1.0, 56.0 / ed)
+        lw, lh = max(8, int(round(rw * ms))), max(8, int(round(rh * ms)))
+
+        def lo_poly(mk, points, value, grow=0.0):
+            if grow > 0:
+                c = points.mean(0)
+                v = points - c
+                points = c + v * (1 + grow / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-3))
+            cv2.fillConvexPoly(mk, cv2.convexHull(((points - off) * (ms * 4)).astype(np.int32)), value, cv2.LINE_AA, 2)
+
+        def lo_soft(mk, sigma, weight=None):
+            mk = cv2.GaussianBlur(mk, (0, 0), max(0.5, sigma * ms)).astype(np.float32)
+            if weight is not None:
+                mk *= weight
+            if (lw, lh) != (rw, rh):
+                mk = cv2.resize(mk, (rw, rh), interpolation=cv2.INTER_LINEAR)
+            mk *= 1 / 255
+            return mk
+
+        def lo_face(eyes=0.0, brows=None, lips=0.0):
+            """Visage (front compris) sans les yeux, ni les sourcils (brows : marge), ni la bouche."""
+            mk = np.zeros((lh, lw), np.uint8)
+            lo_poly(mk, face_pts, 255)
+            for ring in (lmk[33:43], lmk[87:97]):
+                lo_poly(mk, ring, 0, eyes)
+            if brows is not None:
+                for brow in (lmk[43:52], lmk[97:106]):
+                    lo_poly(mk, brow, 0, brows)
+            lo_poly(mk, mouth, 0, lips)
+            return mk
+
         # Bouche : enveloppe des 20 points ; l'intérieur (ouverture) = les points les plus centraux.
         mouth = lmk[52:72]
         mc = mouth.mean(0)
@@ -594,12 +677,8 @@ class FaceReshape:
         eye_rings = (lmk[33:43], lmk[87:97])
         brows = (lmk[43:52], lmk[97:106])
 
-        if p["skin_smooth"] or p["glow"]:
-            skin = poly_mask(face_pts)
-            for idx in (range(33, 43), range(87, 97), range(43, 52), range(97, 106)):
-                skin = cv2.subtract(skin, poly_mask(lmk[list(idx)], 0.12 * ed))
-            skin = cv2.subtract(skin, poly_mask(mouth, 0.08 * ed))
-            wskin = feather(skin, 0.08 * ed)[..., None]
+        if p["skin_smooth"] or p["glow"] or p["matte"]:
+            wskin = lo_soft(lo_face(0.12 * ed, 0.12 * ed, 0.08 * ed), 0.08 * ed)[..., None]
             if p["skin_smooth"]:
                 # Filtre bilatéral à basse résolution : lisse le grain et les petits défauts,
                 # garde les contours (yeux, nez, mâchoire).
@@ -608,7 +687,21 @@ class FaceReshape:
                 sm = cv2.bilateralFilter(small, 0, 18 + 0.3 * p["skin_smooth"], 3)
                 if f < 1:
                     sm = cv2.resize(sm, (rw, rh), interpolation=cv2.INTER_LINEAR)
-                out += (sm.astype(np.float32) - out) * wskin * (p["skin_smooth"] / 100 * 0.85)
+                sm = sm.astype(np.float32)
+                if p["skin_texture"]:
+                    # Le lissage efface les défauts ET les pores (peau « en plastique ») : le détail le
+                    # plus fin est reposé par-dessus, les taches et les rougeurs restent lissées.
+                    sm += (out - cv2.GaussianBlur(out, (0, 0), max(0.8, 0.012 * ed))) * (p["skin_texture"] / 100)
+                out += (sm - out) * wskin * (p["skin_smooth"] / 100 * 0.85)
+            if p["matte"]:
+                # Reflets brillants : ce qui dépasse nettement la luminosité de la peau voisine est ramené
+                # vers elle (la teinte est gardée : le reflet devient de la peau, pas du gris).
+                luma = out @ np.float32([0.114, 0.587, 0.299])
+                near = cv2.resize(cv2.GaussianBlur(cv2.resize(luma, (lw, lh), interpolation=cv2.INTER_AREA), (0, 0),
+                                                   max(1.0, 0.12 * ed * ms)), (rw, rh), interpolation=cv2.INTER_LINEAR)
+                over = np.maximum(luma - near - 6, 0)
+                shine = np.clip(over / 28, 0, 1) * wskin[..., 0] * (p["matte"] / 100)
+                out *= (1 - shine * 0.65 * over / np.maximum(luma, 1))[..., None]
             if p["glow"]:
                 g = p["glow"] / 100
                 lifted = 255 * (out / 255) ** (1 - 0.35 * g)       # éclaircit les tons moyens
@@ -619,13 +712,10 @@ class FaceReshape:
             lab = cv2.cvtColor(np.clip(out, 0, 255).astype(np.uint8), cv2.COLOR_BGR2LAB).astype(np.float32)
             face_soft = None
             if p["tan"] or p["freckles"] or p["contour"]:
-                face_soft = poly_mask(face_pts)
-                for ring in eye_rings:
-                    face_soft = cv2.subtract(face_soft, poly_mask(ring, 0.1 * ed))
-                face_soft = cv2.subtract(face_soft, poly_mask(mouth, 0.05 * ed))
+                face_soft = lo_face(0.1 * ed, None, 0.05 * ed)
             if p["tan"]:
                 k = p["tan"] / 100
-                wt = feather(face_soft, 0.13 * ed)
+                wt = lo_soft(face_soft, 0.13 * ed)
                 lab[..., 0] -= 7 * k * wt
                 lab[..., 1] += 2 * k * wt
                 lab[..., 2] += 8 * k * wt
@@ -643,7 +733,7 @@ class FaceReshape:
                 wc = np.zeros((rh, rw), np.float32)
                 for edge, corner in ((contour[6], pts[3]), (contour[26], pts[4])):
                     wc = np.maximum(wc, stroke([edge, edge + (corner - edge) * 0.6], 0.16 * ed, 0.075 * ed))
-                wc *= feather(face_soft, 0.05 * ed)
+                wc *= lo_soft(face_soft, 0.05 * ed)
                 lab[..., 0] -= 30 * k * wc
                 lab[..., 1] += 3 * k * wc
                 lab[..., 2] += 3 * k * wc
@@ -664,7 +754,7 @@ class FaceReshape:
                     c = eye_c + ux * x * ed + uy * y * ed
                     cv2.circle(mk, ((c - off) * 4).astype(np.int32), max(2, int((0.004 + 0.01 * r) * ed * 4)),
                                int(70 + 185 * a), -1, cv2.LINE_AA, 2)
-                wf = feather(mk, 0.009 * ed) * feather(face_soft, 0.03 * ed) * min(1.0, 0.5 + k)
+                wf = feather(mk, 0.009 * ed) * lo_soft(face_soft, 0.03 * ed) * min(1.0, 0.5 + k)
                 lab[..., 0] -= 26 * wf
                 lab[..., 2] += 12 * wf
                 lab[..., 1] += 6 * wf
@@ -731,12 +821,15 @@ class FaceReshape:
                         lab[..., 0] += np.maximum(tgt[0] * 0.7 - lab[..., 0], 0) * 0.6 * k * wi
             if p["blush"]:
                 k = p["blush"] / 100
-                wb = np.zeros((rh, rw), np.float32)
-                yy, xx = np.mgrid[0:rh, 0:rw].astype(np.float32)
+                wb = np.zeros((lh, lw), np.float32)
+                yy, xx = np.mgrid[0:lh, 0:lw].astype(np.float32)
                 for eye, mouth_corner, sgn in ((le, pts[3], -1), (re, pts[4], 1)):
-                    c = eye + (mouth_corner - eye) * 0.55 + ux * sgn * 0.18 * ed - off
-                    wb += np.exp(-(((xx - c[0]) ** 2 + (yy - c[1]) ** 2) / (2 * (0.3 * ed) ** 2)))
-                wb = np.minimum(wb, 1) * feather(cv2.subtract(poly_mask(face_pts), mouth_full), 0.05 * ed)
+                    c = (eye + (mouth_corner - eye) * 0.55 + ux * sgn * 0.18 * ed - off) * ms
+                    wb += np.exp(-(((xx - c[0]) ** 2 + (yy - c[1]) ** 2) / (2 * (0.3 * ed * ms) ** 2)))
+                cheeks = np.zeros((lh, lw), np.uint8)
+                lo_poly(cheeks, face_pts, 255)
+                lo_poly(cheeks, mouth, 0)
+                wb = lo_soft(cheeks, 0.05 * ed, np.minimum(wb, 1))
                 lab[..., 1] += 16 * k * wb
                 lab[..., 2] += 3 * k * wb
                 lab[..., 0] -= 4 * k * wb

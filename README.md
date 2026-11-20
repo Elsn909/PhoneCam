@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>Visage et voix transformés en direct, et un Studio pour retoucher après coup.</b><br>
-  Webcam du PC ou téléphone Android → caméra virtuelle et micro virtuel, pour la visio, le stream et les appels.
+  Ta caméra (webcam, appareil en mode webcam, carte de capture) → caméra virtuelle et micro virtuel, pour la visio, le stream et les appels.
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@
 1. En haut de cette page : **Code → Download ZIP**, puis **extraire** le zip (par exemple dans Documents).
 2. Double-clic sur **`Installer.bat`**.
    Si Windows affiche « Windows a protégé votre ordinateur » : **Informations complémentaires → Exécuter quand même**.
-   Compter 20 à 40 minutes (environ 8,5 Go téléchargés : Python, paquets, modèles du visage et de la voix, OBS, ffmpeg, adb).
+   Compter 20 à 40 minutes (environ 8,5 Go téléchargés : Python, paquets, modèles du visage et de la voix, OBS, ffmpeg).
    En cas d'erreur, relancer `Installer.bat` reprend où il s'est arrêté.
 3. Si OBS vient d'être installé : **redémarrer le PC** une fois.
 
@@ -61,7 +61,7 @@ et chaque icône de la colonne de gauche affiche une bulle d'aide au survol.
 
 La liste **« Prêt pour l'antenne ? »**, au milieu de la fenêtre, dit ce qui manque. Clique sur une étape pour y aller :
 
-1. **Connexion** : choisis la source vidéo, **Webcam du PC** ou **Téléphone** (appli Android, en Wi-Fi par QR code ou par câble).
+1. **Caméra** : choisis ta caméra dans la liste ; elle démarre seule.
 2. **Visage** : « Choisir une photo… »
 3. **Caméra virtuelle** : bouton en bas (F5). Dans Discord, Snapchat, OBS… choisis la caméra **« OBS Virtual Camera »**.
 4. **Micro** : bouton en bas (F6), puis la voix si tu veux (voir ci-dessous).
@@ -98,11 +98,11 @@ Dans la colonne de gauche : **Moteur** (qualité du visage), **Retouche** (forme
 <table>
   <tr>
     <td><img src="docs/images/voix.png" alt="Page Voix : modèle et bibliothèque" width="100%"></td>
-    <td><img src="docs/images/voix_reglages.png" alt="Page Voix : hauteur, timbre, voix vivante" width="100%"></td>
+    <td><img src="docs/images/voix_reglages.png" alt="Page Voix : hauteur, timbre, fidélité au modèle" width="100%"></td>
   </tr>
   <tr>
     <td align="center"><b>Modèle</b> : la voix et la bibliothèque (deux voix fournies)</td>
-    <td align="center"><b>Voix</b> : hauteur, timbre, voix vivante</td>
+    <td align="center"><b>Voix</b> : hauteur, timbre, fidélité au modèle</td>
   </tr>
 </table>
 
@@ -183,15 +183,16 @@ La photo du visage n'est dans aucun preset fourni : choisis-la dans la page Visa
 
 ---
 
-## Téléphone (facultatif)
+## Caméras
 
-Android 9 ou plus récent. Installe **`Appli Android\PhoneCam.apk`** sur le téléphone :
+Toute caméra que Windows voit comme une webcam :
 
-- copie-le sur le téléphone et ouvre-le, en autorisant l'installation d'applis inconnues ;
-- ou, avec le câble et le débogage USB activé :
-  `Programme\tools\platform-tools\adb.exe install "Appli Android\PhoneCam.apk"`.
+- webcam USB ;
+- appareil photo ou caméra en mode webcam (Osmo Pocket, GoPro, Sony, Canon…, avec le logiciel « webcam » de la marque si elle en demande un) ;
+- carte de capture HDMI (Elgato Cam Link…) ;
+- téléphone utilisé comme caméra : **Lien avec Windows** (Windows 11 + Android), Camo, DroidCam, Iriun.
 
-Puis, dans PhoneCam : **Connexion → Connecter par câble**, ou scanne le QR code en Wi-Fi.
+Chaque caméra a ses propres formats : PhoneCam essaie plusieurs façons de l'ouvrir et garde la première qui donne de vraies images. La page **Caméra** dit la taille et la cadence reçues. Une caméra ne sert qu'à un logiciel à la fois : ferme-la dans OBS, Discord ou Teams avant. Pas besoin de passer par OBS : PhoneCam lit la caméra directement.
 
 ---
 
@@ -200,7 +201,8 @@ Puis, dans PhoneCam : **Connexion → Connecter par câble**, ou scanne le QR co
 - Windows 10 ou 11 (64 bits)
 - Une carte graphique NVIDIA récente (RTX conseillée), pilote à jour
 - Environ 20 Go libres, et Internet pour l'installation
-- Facultatif : un téléphone Android, [VB-Cable A+B](https://vb-audio.com/Cable/) pour le micro virtuel
+- Une caméra (webcam, appareil en mode webcam, carte de capture)
+- Facultatif : [VB-Cable A+B](https://vb-audio.com/Cable/) pour le micro virtuel
 
 ---
 
@@ -214,17 +216,16 @@ Puis, dans PhoneCam : **Connexion → Connecter par câble**, ou scanne le QR co
 | `Voix\` | les voix du changeur de voix (deux fournies) |
 | `Presets\` | les presets fournis |
 | `Captures\` | créé à l'installation : photos, enregistrements, captures de diagnostic |
-| `Appli Android\` | l'appli du téléphone, déjà compilée |
 | `Programme\` | le moteur : rien à y toucher |
 
 <details>
 <summary>Dans <code>Programme\</code> (pour le développement)</summary>
 
-- `PhoneCam\` : le code Python de PhoneCam, sa page web, et `android\` (code de l'appli : Android Studio, ou JDK 17 + SDK : `gradle assembleDebug`).
+- `PhoneCam\` : le code Python de PhoneCam.
 - `app\` : [Deep-Live-Cam](https://github.com/hacksider/Deep-Live-Cam) (détection des visages, inswapper, GFPGAN / GPEN).
   `Lancer Deep-Live-Cam.bat` ouvre son interface d'origine (facultatif).
 - `wheels\` : insightface déjà compilé (évite d'installer Visual Studio). `requirements.txt` : versions exactes des paquets Python.
-- Créés par l'installateur, jamais envoyés en ligne : `venv\` (Python), `data\` (modèles, réglages, caches), `tools\` (adb).
+- Créés par l'installateur, jamais envoyés en ligne : `venv\` (Python), `data\` (modèles, réglages, caches).
 
 Désinstaller : supprimer le dossier. Python, OBS et ffmpeg se désinstallent depuis les Paramètres de Windows.
 </details>

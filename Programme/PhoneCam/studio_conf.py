@@ -25,6 +25,7 @@ ENGINE_DEFAULTS = {
     "regions": ["skin", "brows", "eyes", "glasses", "nose", "lips", "mouth"],   # zones remplacées
     "expr_upper": True,         # expressions du haut du visage
     "expr_lower": True,         # expressions du bas du visage
+    "beard": False,             # expérimental : barbe restée au bas du menton recouverte
     "opacity": 100,             # visage généré mêlé à l'image d'origine, %
     "sharpness": 0,             # netteté du visage, dixièmes
     "mirror": False,

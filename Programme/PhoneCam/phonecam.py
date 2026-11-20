@@ -1,4 +1,4 @@
-"""PhoneCam Studio. Direct : caméra du téléphone → remplacement du visage → filtres → effets → caméra
+"""PhoneCam Studio. Direct : caméra du PC → remplacement du visage → filtres → effets → caméra
 virtuelle. Studio (ui_studio.py, studio.py) : la même chose sur des vidéos importées, en qualité maximale."""
 import json
 import os
@@ -24,6 +24,10 @@ os.environ.setdefault("KMP_BLOCKTIME", "0")
 # Idem pour le calcul matriciel de numpy (OpenBLAS) : ses petits calculs (maillage des filtres)
 # prennent 8 ms sur 32 threads contre 0,1 ms sur un seul.
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+# Les fils du flux (moteur, rendu, retouches, effets, sortie, interface) se passent la main de Python
+# toutes les 5 ms par défaut : chacun attendait les autres après chaque petit calcul. À 1 ms, mesuré avec
+# les mêmes réglages : 25–28 → 30 images traitées par seconde, latence 220–280 → 180–200 ms.
+sys.setswitchinterval(0.001)
 
 import cv2
 import numpy as np
@@ -35,19 +39,17 @@ cv2.setNumThreads(2)
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import usb  # noqa: E402
 from effects import DelayLine, Effects  # noqa: E402
 from phonemic import AudioLink, PhoneMic  # noqa: E402
 from voix import Voix  # noqa: E402
 from guard import FaceGuard  # noqa: E402
 from framing import Framing  # noqa: E402
 from reshape import FaceReshape  # noqa: E402
-from server import CAPTURES_DIR, DATA_DIR, PhoneServer, log_error  # noqa: E402
+from server import CAPTURES_DIR, DATA_DIR, FrameSource, log_error  # noqa: E402
 from segment import PersonSegmenter  # noqa: E402
 from head3d import Head3D  # noqa: E402
 from landmarks import Hrffa  # noqa: E402
 from models_plus import MODELS_DIR  # noqa: E402
-from snapweb import SnapBridge  # noqa: E402
 from webcam import PcWebcam  # noqa: E402
 
 OUTPUT_SIZES = {"1280×720": (1280, 720), "1920×1080": (1920, 1080), "960×540": (960, 540),
@@ -71,6 +73,19 @@ def fit(frame: np.ndarray, size: tuple[int, int], fill: bool) -> np.ndarray:
     x, y = (W - nw) // 2, (H - nh) // 2
     out[y:y + nh, x:x + nw] = img
     return out
+
+
+def crop_to(frame: np.ndarray, size: tuple[int, int]) -> np.ndarray:
+    """Partie centrale de l'image aux proportions de la sortie (la même que garde fit en « remplir »)."""
+    W, H = size
+    h, w = frame.shape[:2]
+    if w * H > h * W:
+        nw = max(2, round(h * W / H))
+        x = (w - nw) // 2
+        return frame[:, x:x + nw]
+    nh = max(2, round(w * H / W))
+    y = (h - nh) // 2
+    return frame[y:y + nh]
 
 
 RENDER_TIMEOUT = 3.0            # secondes : au-delà, l'image est abandonnée
@@ -113,29 +128,23 @@ class Mailbox:
 
 
 class Pipeline:
-    """Quatre étages en parallèle : décodage (server), Deep-Live-Cam (GPU) + garde anti-fuite,
+    """Quatre étages en parallèle : caméra (webcam.py), Deep-Live-Cam (GPU) + garde anti-fuite,
     filtres de forme puis effets (CPU), sortie.
 
     Chaque étage travaille sur une image différente en même temps : le débit est celui de
     l'étage le plus lent, et non la somme de tous.
     """
 
-    def __init__(self, server: PhoneServer):
-        self.server = server
+    def __init__(self, server: FrameSource):
+        self.server = server            # images de la caméra (la plus récente seulement)
         self.guard = FaceGuard()
         self.mic = PhoneMic()           # micro de smartphone simulé (indépendant de la vidéo)
         self.voice = Voix()             # changeur de voix (RVC), avant la simulation du micro
-        self.audio = AudioLink(self.mic, server, self.voice)
-        from son_pc import PcSound
-        self.pc_sound = PcSound(server)   # son du PC vers l'appli du téléphone (à sa demande)
-        # Snapchat Web piloté depuis l'appli ; ses boutons « pause / caméra / micro » agissent ici.
-        self.snap = SnapBridge(server, DATA_DIR)
-        self.snap.on_output = self._snap_output
-        self.snap.mic_running = lambda: self.audio.running
-        self.snap.mic_gain = lambda: int(self.mic.p["output_gain"])
-        self.webcam = PcWebcam(server)  # webcam du PC, à la place du téléphone
+        self.audio = AudioLink(self.mic, self.voice)
+        self.webcam = PcWebcam(server)  # la caméra du PC (webcam, appareil en mode webcam, carte de capture…)
         self.shape = FaceReshape()
         self.shape.segmenter = PersonSegmenter(MODELS_DIR)
+        self.shape.segmenter.live = True
         self.shape.head3d = Head3D()
         self.shape.hrffa = Hrffa()
         self.framing = Framing()        # zoom / position / suivi du visage de la sortie
@@ -185,16 +194,14 @@ class Pipeline:
         self._next_ai = base + interval
         return False
 
-    def _snap_output(self, key, value):
-        if key == "paused":           # pause : image figée et micro coupé, comme une coupure réseau
-            self.out_freeze = value
-            self.audio.muted = value or self.snap.out_state["muted"]
-        elif key == "black":          # caméra coupée : image noire
-            self.out_black = value
-        elif key == "gain":           # volume de sortie, réglé depuis l'appli
-            self.mic.p["output_gain"] = value
-        elif key == "muted":
-            self.audio.muted = value or self.snap.out_state["paused"]
+    def set_paused(self, on: bool) -> None:
+        """Pause : image figée et micro coupé, comme une coupure réseau."""
+        self.out_freeze = bool(on)
+        self.audio.muted = bool(on)
+
+    def set_black(self, on: bool) -> None:
+        """Caméra coupée : image noire sur la caméra virtuelle."""
+        self.out_black = bool(on)
 
     def start(self):
         for name, loop in (("process", self._process_loop), ("effects", self._fx_loop),
@@ -222,7 +229,7 @@ class Pipeline:
     def _watchdog(self):
         """Des images arrivent mais le moteur n'en rend plus aucune : en général le pilote graphique
         s'est réinitialisé (erreur 141 de Windows) et le moteur a perdu la carte. Seul un nouveau
-        processus la retrouve : PhoneCam repart seul et le téléphone se reconnecte."""
+        processus la retrouve : PhoneCam repart seul (réglages enregistrés avant)."""
         import faulthandler
         quiet = 0
         while not self._stop.wait(1):
@@ -237,7 +244,6 @@ class Pipeline:
                     faulthandler.dump_traceback(file=f, all_threads=True)
             except OSError:
                 pass
-            self.server.send_json({"t": "web", "status": "Carte graphique réinitialisée : PhoneCam redémarre…"})
             self.restart_wanted = True      # l'interface enregistre les réglages puis relance
             if not self._stop.wait(3):
                 self.restart_now()
@@ -346,8 +352,12 @@ class Pipeline:
                 frame = self.shape.apply(frame, faces)
                 # Zoom et position avant les effets : comme une webcam qui zoome avant d'encoder.
                 frame = self.framing.apply(frame, faces)
+                # Les effets ne traitent que ce qui sortira : une caméra tenue debout pour une sortie
+                # en largeur perd les deux tiers de l'image au recadrage, inutile de les calculer.
+                if self.fill:
+                    frame = crop_to(frame, self.size)
                 self.fx.ref_width = self.size[0]
-                self.delay.push(self.fx.apply(frame), t_recv)
+                self.delay.push(self.fx.apply(frame, keep_size=False), t_recv)
 
     def start_recording(self, seconds: float = 10.0) -> None:
         """Enregistre la sortie (ce que reçoit la caméra virtuelle) dans data\\captures."""
@@ -528,13 +538,6 @@ def save_settings(data: dict) -> None:
     os.replace(tmp, SETTINGS_PATH)
 
 
-def make_qr(text):
-    import qrcode
-    qr = qrcode.QRCode(border=2, box_size=4)
-    qr.add_data(text)
-    return np.array(qr.make_image(fill_color="black", back_color="white").convert("RGB"))[:, :, ::-1]
-
-
 def startup_progress(pipeline: Pipeline, live) -> tuple:
     """Avancement du démarrage pour l'écran de chargement : (pourcentage, étape, détail, fini)."""
     e = pipeline.engine
@@ -551,7 +554,20 @@ def startup_progress(pipeline: Pipeline, live) -> tuple:
     return 100, "Prêt", "", True
 
 
-def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=None):
+def load_extension():
+    """Extension locale facultative (dossier « extension_locale » à côté du code, jamais publiée) : elle peut
+    fournir sa propre source d'images (make_source), puis compléter le Direct (setup) et se fermer (close)."""
+    try:
+        import extension_locale
+        return extension_locale
+    except ImportError:
+        return None
+    except Exception:  # noqa: BLE001 — une extension cassée ne doit jamais empêcher PhoneCam de démarrer
+        log_error("extension locale")
+        return None
+
+
+def build_ui(pipeline: Pipeline, server: FrameSource, keep_alive=None, splash=None, extension=None):
     from PySide6.QtCore import QByteArray, QEvent, QObject, QSize, Qt, QTimer
     from PySide6.QtGui import QKeySequence, QShortcut
     from PySide6.QtWidgets import (QApplication, QButtonGroup, QHBoxLayout, QInputDialog, QLabel, QMenu, QMessageBox,
@@ -617,7 +633,7 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
     bar.addWidget(search_btn)
     bar.addStretch()
     chips = {}
-    for key, tip in (("phone", "Téléphone : ouvrir la connexion"), ("engine", "Moteur : ouvrir ses réglages"),
+    for key, tip in (("camera", "Caméra : ouvrir ses réglages"), ("engine", "Moteur : ouvrir ses réglages"),
                      ("vcam", "Caméra virtuelle : ouvrir la sortie"), ("mic", "Micro : ouvrir ses réglages"),
                      ("voice", "Voix transformée : ouvrir ses réglages")):
         b = QToolButton()
@@ -640,7 +656,7 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
     outer.addWidget(topbar)
     outer.addWidget(spaces, 1)
 
-    live = LiveSpace(pipeline, server, settings, registry, lambda t: toasts.show(t), make_qr)
+    live = LiveSpace(pipeline, server, settings, registry, lambda t: toasts.show(t))
     studio_space = StudioSpace(settings, registry, lambda t: toasts.show(t))
     spaces.addWidget(live)
     spaces.addWidget(studio_space)
@@ -665,6 +681,11 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
         toasts.show(f"Rétabli : {text}" if text else "Rien à rétablir")
 
     live.presets = PresetHub(settings, live, studio_space)
+    if extension is not None:
+        try:
+            extension.setup(live, pipeline, win, lambda t: toasts.show(t))
+        except Exception:  # noqa: BLE001
+            log_error("extension locale")
 
     def open_presets():
         (live if spaces.currentIndex() == 0 else studio_space).open_presets()
@@ -721,7 +742,7 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
                 ("Couper l'image", "F4", live.toggle_black),
                 ("Photo de la sortie", "F8", live.snapshot),
                 ("Enregistrer la sortie", "F9", live.toggle_record),
-                ("Comparer avec l'image du téléphone", "F10", live.toggle_compare),
+                ("Comparer avec l'image de la caméra", "F10", live.toggle_compare),
                 ("Plein écran", "F11", full_screen),
                 ("Afficher ou masquer le panneau", "Ctrl+B", lambda: (live if spaces.currentIndex() == 0 else studio_space).rail.toggle_panel()),
                 ("Aperçu : couper ou rétablir", "Ctrl+P", live.toggle_preview),
@@ -733,8 +754,7 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
                 *[(f"Preset : {g} / {n}", "", lambda g=g, n=n: live.presets.apply(g, n))
                   for g, items in live.presets.groups.items() for n in items],
                 ("Ouvrir le dossier des captures", "", live.open_captures),
-                ("Ouvrir Snapchat Web", "", pipeline.snap.open),
-                ("Connecter le téléphone par câble", "", live._usb_connect)]
+                ("Caméra : actualiser la liste", "", live._fill_cams)]
     palette = Palette(win, registry, actions)
     search_btn.clicked.connect(palette.open)
     shortcuts = [("Ctrl+K", palette.open), ("Ctrl+Z", undo), ("Ctrl+Y", redo), ("Ctrl+Shift+Z", redo), ("F1", show_help)]
@@ -763,7 +783,7 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
     keys_filter = Keys(app)
     app.installEventFilter(keys_filter)
 
-    for key, name in (("phone", "Connexion"), ("engine", "Moteur"), ("vcam", "Sortie"), ("mic", "Micro"), ("voice", "Voix")):
+    for key, name in (("camera", "Caméra"), ("engine", "Moteur"), ("vcam", "Sortie"), ("mic", "Micro"), ("voice", "Voix")):
         chips[key].clicked.connect(lambda _c=False, name=name: open_page(name))
 
     def open_page(name):
@@ -825,10 +845,11 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
         keep_alive(dict(app=app, win=win, live=live, studio=studio_space, registry=registry, palette=palette, go=go, actions=actions))
     code = app.exec()
     persist()
-    pipeline.snap.close()
+    pipeline.webcam.stop()
+    if extension is not None and hasattr(extension, "close"):
+        extension.close()
     pipeline.audio.stop()
     pipeline.stop()
-    usb.disconnect()
     time.sleep(0.2)
     return code
 
@@ -836,12 +857,13 @@ def build_ui(pipeline: Pipeline, server: PhoneServer, keep_alive=None, splash=No
 def main():
     if SPLASH:
         SPLASH.step(18, "Démarrage du serveur")
-    server = PhoneServer()
-    server.start()
+    ext = load_extension()
+    server = ext.make_source() if ext is not None and hasattr(ext, "make_source") else FrameSource()
     pipeline = Pipeline(server)
-    pipeline.det_size = load_settings().get("dlc", {}).get("det_size")
+    det = load_settings().get("dlc", {}).get("det_size")
+    pipeline.det_size = 640 if det == 160 else det          # voir LiveSpace (dlc_rev)
     pipeline.start()
-    sys.exit(build_ui(pipeline, server, splash=SPLASH))
+    sys.exit(build_ui(pipeline, server, splash=SPLASH, extension=ext))
 
 
 if __name__ == "__main__":

@@ -145,20 +145,11 @@ class VoicePage:
                 vp["sensitivity"] = VOICE_DEFAULTS["sensitivity"]
             if old.get("release_ms", 220) == 220:
                 vp["release_ms"] = VOICE_DEFAULTS["release_ms"]
-        if s.get("voix_rev", 1) < 3:
-            for k, old_v in (("lift_floor", 20), ("lift_amount", 70), ("lift_floor", 10), ("lift_amount", 80), ("lively", 20)):
-                if vp[k] == old_v:
-                    vp[k] = VOICE_DEFAULTS[k]
-            s["voix_rev"] = 3
         s.setdefault("voice_library", "")
         default_voices(s, vp)
         if "voice_favorites" not in s:      # 1er lancement : la voix utilisée d'habitude devient favorite
             s["voice_favorites"] = [vp["pth"]] if vp["pth"] and os.path.isfile(vp["pth"]) else []
         self.favs = s["voice_favorites"]
-        if s.get("voix_rev", 1) < 4:        # hauteur normale : réglée à la main (la mesure apprise était faussée)
-            vp["lift_ref"] = VOICE_DEFAULTS["lift_ref"]
-            vp["lift_auto"] = False
-            s["voix_rev"] = 4
         if s.get("voix_rev", 1) < 5:        # nettoyage moins fort : les fins de mots (« mal ») ne sont plus rognées
             if vp.get("denoise_db") == 18:
                 vp["denoise_db"] = VOICE_DEFAULTS["denoise_db"]
@@ -390,16 +381,6 @@ class VoicePage:
         if on and not vp["pth"]:
             live.toast("Choisis un modèle de voix")
 
-    def _measure(self):
-        eng = self.voice.engine
-        a = self.pipe.audio
-        if eng is None or not (a.running and a.vox and self.voice.ready()):
-            self.live.toast("Démarre le micro avec la voix transformée, puis parle normalement")
-            return
-        eng.lively.measure = []
-        self.measuring = True
-        self.live.toast("Parle normalement, avec ta voix joyeuse habituelle, pendant ~5 s")
-
     def save_now(self):
         self.live.persist_cb()
         self.live.toast("Réglages enregistrés : ils seront là au prochain démarrage")
@@ -426,30 +407,6 @@ class VoicePage:
                  "+12 : une octave au-dessus (homme → femme), −12 : une octave en dessous.")
         self._sl(f, "formant", "Timbre (formants)", -40, 40, lambda x: f"{x / 10:+.1f}" if x else "0",
                  "Plus haut : voix plus fine, plus « petite » ; plus bas : plus grave et plus large. Sans changer la hauteur.")
-        f.section("Voix vivante (ton bas)")
-        f.check("Relever mon ton quand je parle bas", vp["lift_on"], lambda on: self.voice.set("lift_on", bool(on)),
-                key="lift_on", default=True,
-                tip="Ta hauteur habituelle est apprise toute seule. Quand tu passes nettement en dessous, la voix est remontée, "
-                    "plus mélodieuse et plus claire : enjouée plutôt qu'éteinte.")
-        self.ref_bar = self._sl(f, "lift_ref", "Ta hauteur normale", 70, 300, lambda x: f"{x} Hz",
-                                "Ta voix habituelle, quand tu parles normalement et joyeusement. En dessous, la voix est relevée. "
-                                "Règle à l'oreille, ou « Mesurer ma voix normale ».")
-        self._sl(f, "lift_floor", "Seuil (sous ta hauteur normale)", 0, 60, lambda x: f"{x / 10:.1f} demi-ton",
-                 "À partir de combien sous ta hauteur normale on remonte. Plus bas : agit plus souvent.")
-        self._sl(f, "lift_amount", "Remonter de", 0, 100, lambda x: f"{x} % de l'écart",
-                 "100 % : ramené à ton ton habituel ; 50 % : à mi-chemin.")
-        self._sl(f, "lively", "Expressivité", 0, 80, lambda x: f"+{x} %",
-                 "La mélodie de la voix (montées, descentes) est élargie : moins monotone.")
-        f.check("Expressivité tout le temps", vp["lively_always"], lambda on: self.voice.set("lively_always", bool(on)),
-                key="lively_always", default=False, tip="Sinon, pleine seulement quand le ton est relevé (un peu le reste du temps).")
-        self._sl(f, "lift_bright", "Clarté ajoutée", 0, 100, lambda x: f"{x} %",
-                 "Présence et air ajoutés seulement pendant que la voix est relevée.")
-        self.lift_state = f.label()
-        measure = f.button("Mesurer ma voix normale (5 s)", self._measure)
-        measure.setToolTip("Parle normalement pendant ~5 s : « Ta hauteur normale » est réglée sur ta voix.")
-        f.check("L'apprendre toute seule en continu", vp["lift_auto"], lambda on: self.voice.set("lift_auto", bool(on)),
-                key="lift_auto", default=False,
-                tip="Le curseur suit lentement ta voix. Coupé (conseillé) : il ne bouge que si tu le règles.")
         f.section("Fidélité au modèle", key="voix-fidelite")
         self._sl(f, "index_rate", "Index (accent, timbre du modèle)", 0, 100, lambda x: f"{x} %",
                  "Plus haut : plus proche de la voix d'origine du modèle, mais articulation un peu moins nette.")
@@ -507,6 +464,10 @@ class VoicePage:
                  "Ce que le modèle « entend » avant chaque bloc. Plus long = voix plus stable et naturelle (sans retard en plus).")
         self._sl(f, "crossfade", "Fondu entre les blocs", 1, 4, lambda x: f"{x * 10} ms",
                  "Raccord entre deux blocs. Plus long = raccords plus doux, un peu plus de retard.")
+        self._sl(f, "ahead_ms", "Avance sur le son", 0, 100, lambda x: "aucune" if x < 10 else f"{x // 10 * 10} ms",
+                 "Le moteur attend d'avoir entendu un peu de la suite avant de jouer : les fins de blocs ne sont plus "
+                 "devinées, la voix est plus proche d'une conversion faite après coup (mesuré : contenu reconnu à 92 % "
+                 "au lieu de 91 % à 20 ms, 94 % à 80 ms). Ajoute autant de retard.", True)
         self._sl(f, "margin_ms", "Réserve anti-coupures", 10, 150, lambda x: f"{x} ms",
                  "Marge contre les à-coups de la carte graphique (vidéo en même temps). Monte si tu entends des coupures.", True)
         self.perf = f.label()
@@ -541,26 +502,6 @@ class VoicePage:
         else:
             st = v.status
         self.status.setText(st)
-        if on and v.p["lift_on"]:
-            sh = v.stat("lift_shift", 0.0)
-            cur = v.stat("cur_hz", 0.0)
-            eng = v.engine
-            if getattr(self, "measuring", False) and eng is not None and eng.lively.measure is None:
-                self.measuring = False
-                self.ref_bar.setValue(int(v.p["lift_ref"]))
-                self.live.toast(f"Ta hauteur normale : {v.p['lift_ref']} Hz")
-            if v.p["lift_auto"] and self.ref_bar.value() != int(v.p["lift_ref"]):
-                self.ref_bar.blockSignals(True)
-                self.ref_bar.setValue(int(v.p["lift_ref"]))
-                self.ref_bar.blockSignals(False)
-            now = f"en ce moment : {cur:.0f} Hz" if cur else "parle pour voir ta hauteur"
-            if getattr(self, "measuring", False):
-                n = len(eng.lively.measure or []) if eng is not None else 0
-                now = f"mesure… {min(100, n // 3)} %"
-            self.lift_state.setText((f"● Ton bas : relevé de +{sh:.1f} demi-ton" if sh > 0.3 else "○ Ton normal : rien à relever")
-                                    + f"   ·   {now}")
-        else:
-            self.lift_state.setText("")
         if self.bb_label.text() != self.pipe.audio.bb_status:
             self.bb_label.setText(self.pipe.audio.bb_status)
         if on:

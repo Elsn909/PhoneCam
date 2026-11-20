@@ -6,7 +6,7 @@ from ui_kit import C, Toggle, icon
 
 SPACES = (
     ("live", "Direct", "En direct : visio, stream, appels.",
-     [("Connexion", "Branche le téléphone (ou une webcam)."),
+     [("Caméra", "Choisis ta caméra : webcam, appareil en mode webcam, carte de capture."),
       ("Visage", "Choisis la photo du visage à appliquer."),
       ("Caméra virtuelle", "Démarre-la (bouton en bas) : les autres logiciels la voient comme une webcam."),
       ("Micro et Voix", "Démarre le micro ; la voix transformée se règle dans la page Voix.")]),

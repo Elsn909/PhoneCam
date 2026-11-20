@@ -3,6 +3,10 @@ déplacent qu'elle, le décor derrière (mur, porte, étagère) reste droit.
 
 Chargé en arrière-plan à la première demande ; tant qu'il n'est pas prêt, mask() rend None
 et les filtres déforment comme avant.
+
+En direct (live = True), la silhouette est calculée dans son propre fil : chaque image reçoit celle
+de l'image précédente (une silhouette bouge très peu en 30 ms, et elle ne sert qu'à doser une
+déformation lisse), et les retouches n'attendent plus la carte graphique (~8 ms par image).
 """
 import os
 import threading
@@ -22,6 +26,10 @@ class PersonSegmenter:
         self._session = None
         self._loading = False
         self._last = None
+        self.live = False                 # direct : calcul dans un fil à part (voir plus haut)
+        self._cv = threading.Condition()
+        self._todo = None
+        self._worker = None
 
     def available(self) -> bool:
         return os.path.isfile(self.path)
@@ -55,12 +63,37 @@ class PersonSegmenter:
                 self._loading = True
                 threading.Thread(target=self._load, daemon=True, name="modnet-load").start()
             return None
+        now = time.perf_counter()
+        last = self._last
+        # Filtres de forme, flou du décor… le demandent pour la même image : résultat réutilisé.
+        if last is not None and last[0] == frame.shape and now - last[1] < 0.025:
+            return last[2]
+        if self.live:
+            if self._worker is None:
+                self._worker = threading.Thread(target=self._work, daemon=True, name="modnet")
+                self._worker.start()
+            with self._cv:
+                self._todo = frame
+                self._cv.notify()
+            if last is not None and last[0] == frame.shape and now - last[1] < 0.25:
+                return last[2]
+        return self._compute(frame)
+
+    def _work(self):
+        while True:
+            with self._cv:
+                while self._todo is None:
+                    self._cv.wait()
+                frame, self._todo = self._todo, None
+            try:
+                self._compute(frame)
+            except Exception as e:  # noqa: BLE001 — une silhouette ratée : la suivante la remplace
+                self.status = f"Détourage : {e}"
+
+    def _compute(self, frame):
         t0 = time.perf_counter()
-        # Filtres de forme et éclairage le demandent pour la même image : résultat réutilisé.
-        if self._last is not None and self._last[0] == frame.shape and t0 - self._last[1] < 0.025:
-            return self._last[2]
-        x = cv2.resize(frame, (SIZE, SIZE), interpolation=cv2.INTER_AREA)[:, :, ::-1].astype(np.float32)
-        x = np.ascontiguousarray(((x - 127.5) / 127.5).transpose(2, 0, 1)[None])
+        small = cv2.resize(frame, (SIZE, SIZE), interpolation=cv2.INTER_AREA)
+        x = cv2.dnn.blobFromImage(small, 1 / 127.5, mean=(127.5, 127.5, 127.5), swapRB=True)
         m = self._session.run(None, {"input": x})[0][0, 0]
         # Au quart de la taille : bien assez pour guider une déformation lisse.
         m = cv2.resize(m, (frame.shape[1] // 4, frame.shape[0] // 4), interpolation=cv2.INTER_AREA)

@@ -14,11 +14,11 @@ from .reglages import DEFAULTS, find_index  # noqa: F401
 
 SR = 48000
 ZC = SR // 100
-POST = {"block": 50, "extra": 40, "crossfade": 4, "margin_ms": 0}
+# Après coup, le retard ne compte pas : 100 ms d'avance (la suite du son est connue, voir moteur._configure).
+POST = {"block": 50, "extra": 40, "crossfade": 4, "margin_ms": 0, "ahead_ms": 100}
 # Réglages du Studio : ceux de la voix, sans ce qui ne sert qu'au direct (bloc, réserve…).
 KEYS = ("pitch", "formant", "index_rate", "protect", "follow", "gain", "smart", "denoise", "denoise_db",
-        "sensitivity", "release_ms", "preroll_ms", "floor_db", "hold_voiced", "breath", "whisper", "voicing",
-        "lift_on", "lift_floor", "lift_amount", "lift_ref", "lively", "lively_always", "lift_bright")
+        "sensitivity", "release_ms", "preroll_ms", "floor_db", "hold_voiced", "breath", "whisper", "voicing")
 
 
 class FileVoice:
@@ -39,7 +39,6 @@ class FileVoice:
         if eng.ready and eng.p["pth"] == pth and (eng.p["index"] or "") == (index or ""):
             return eng.model.describe()
         eng.p.update(POST)                        # graphes CUDA préparés pour ces blocs-là
-        eng.p["lift_on"] = False
         done, res = threading.Event(), []
         eng.load(pth, index, lambda ok, msg: (res.append((ok, msg)), done.set()))
         done.wait()
@@ -51,7 +50,7 @@ class FileVoice:
     def delay(self):
         """Retard du moteur (échantillons à 48 kHz) : fondu + recherche du raccord, et nettoyage."""
         e = self.eng
-        d = e.cross + e.search // 2
+        d = e.cross + e.search // 2 + e.ahead
         if e.p["smart"] and e.p["denoise"]:
             d += e.denoiser.delay * 3
         return d
@@ -64,7 +63,6 @@ class FileVoice:
         with self.lock, eng.lock, eng._ctx():
             eng.p.update({k: params[k] for k in KEYS if k in params})
             eng.p.update(POST)
-            eng.p["lift_auto"] = False
             eng._configure()
             d = self.delay()
             blk = eng.block

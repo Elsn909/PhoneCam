@@ -676,6 +676,13 @@ class Render:
             return
         if self.q["model"] == "inswapper":
             self.sp.inswapper = face_swapper.get_face_swapper()
+        elif self.boost != 1:
+            # Toutes les passes du pixel boost en un calcul : prêt avant la première image exportée.
+            self.m.log("Préparation du pixel boost (la 1re fois : environ une minute)…")
+            try:
+                self.sp.batch_session(wait=True)
+            except Exception:  # noqa: BLE001 — sans lui, les passes se font une à une comme avant
+                self.sp._failed.add(self.q["model"] + "_lot")
         name = self.q["occluder"]
         if self.q["occlusion"] and name in models_plus.OPTIONAL:
             models_plus.download_optional(name, log=self.m.log)

@@ -27,6 +27,9 @@ from tour_gpu import video_turn
 ARCFACE_128 = np.array([[0.36167656, 0.40387734], [0.63696719, 0.40235469], [0.50019687, 0.56044219],
                         [0.38710391, 0.72160547], [0.61507734, 0.72034453]], np.float32)
 SIZE = 256
+LOT = "_lot"               # modèle dérivé qui traite toutes les passes du pixel boost d'un coup (models_plus.prepare_batch)
+LOT_MAX = 16               # 4 × 4 passes (1024 px, Studio)
+FIT_MARGIN = 1.1           # détail adapté : le visage généré peut être agrandi de 10 % au plus
 EMBED_EVERY = 0.2          # s entre deux calculs de l'empreinte de la personne filmée (poids de l'identité)
 # Classes de l'analyseur BiSeNet gardées : peau, sourcils, yeux, lunettes, nez, intérieur de la bouche, lèvres.
 FACE_CLASSES = [1, 2, 3, 4, 5, 6, 10, 11, 12, 13]
@@ -102,6 +105,26 @@ def _box_mask(size, padding=6, blur=4):
     return m
 
 
+_LOW_MASKS = {}
+
+
+def _box_mask_low(size, padding=6, blur=4):
+    """Même bord que _box_mask, mais ouvert vers le bas : le collage peut descendre sous le menton
+    jusqu'au bord du cadre (fondu sur les dernières lignes)."""
+    key = (size, padding, blur)
+    m = _LOW_MASKS.get(key)
+    if m is None:
+        m = np.zeros((size, size), np.float32)
+        pad = max(1, int(size * (padding / 100)))
+        m[pad:, pad:-pad] = 1
+        if blur > 0:
+            m = cv2.GaussianBlur(m, (0, 0), size * (blur / 100), borderType=cv2.BORDER_REPLICATE)
+        fade = max(3, size // 50)
+        m[-fade:] *= np.linspace(1, 0, fade + 1, dtype=np.float32)[:-1, None]
+        _LOW_MASKS[key] = m
+    return m
+
+
 def _implode(img, total, size):
     """Pixel boost (FaceFusion) : l'image total·size découpée en total² images entrelacées de size."""
     c = img.shape[2:]
@@ -115,6 +138,8 @@ def _explode(tiles, total, size):
     return tiles.reshape(total, total, size, size, *c).transpose(axes).reshape(total * size, total * size, *c)
 _PARSER_MEAN = np.array([0.485, 0.456, 0.406], np.float32) * 255
 _PARSER_SCALE = 1 / (np.array([0.229, 0.224, 0.225], np.float32) * 255)
+_PARSER_MEAN_RGB = tuple(float(v) for v in _PARSER_MEAN)
+_PARSER_SCALE4 = _PARSER_SCALE.reshape(1, 3, 1, 1)
 
 
 def _kind(name):
@@ -131,7 +156,8 @@ DEFAULTS = {
     "stabilize": 50,               # stabilisation des repères, %
     "profile_smooth": 70,          # stabilisation du cadrage de profil / tête levée seulement, % (0 = coupée)
     "hold": True,                  # visage manqué une ou deux images : garder le précédent
-    "detail": 0,                   # Studio : détail du pixel boost gardé après l'expression, %
+    "detail": 80,                  # détail du pixel boost gardé après l'expression, % (0 : le boost est perdu)
+    "boost_fit": True,             # direct : pas plus de passes que la taille du visage dans l'image n'en demande
     # Réglages avancés repris de FaceFusion (valeurs par défaut = rendu d'origine)
     "occluder": "xseg_1",          # détecteur d'occlusion : xseg_1 (d'origine), xseg_2 ou xseg_3
     "landmarker": "detector",      # repères du cadrage : ceux du détecteur (d'origine) ou « hrffa »
@@ -148,6 +174,7 @@ DEFAULTS = {
     "occ_steady": 0,               # XSeg : masque stabilisé d'une image à l'autre, %
     "guard_check": True,           # anti-fuite : comparer deux systèmes de repères (voir _agreement)
     "motion_mask": True,           # tête qui bouge vite : masques assouplis (voir _relax)
+    "beard": False,                # expérimental : barbe ou bouc restés au bas du menton recouverts (voir _beard)
 }
 
 
@@ -223,6 +250,12 @@ class SwapPlus:
         self._motion = {}          # dernier passage de chaque visage : [repères, instant, assouplissement]
         self._fixed = set()        # visages suivis par le Studio (numéros gardés pour l'accord des couleurs)
         self._temb = []            # empreinte de la personne filmée, par visage : [centre, moyenne, instant]
+        self._boost = {}           # détail adapté : nombre de passes en cours, par visage
+        self._grain = {}           # grain à ajouter (ou netteté à retirer) lissé, par visage
+        self._chin = {}            # masque de la barbe sous le menton lissé, par visage
+        self._failed = set()       # modèles facultatifs dont la préparation a échoué : pas de nouvel essai
+        self._no_trt = "TensorrtExecutionProvider" not in ort.get_available_providers()
+        self.boost_now = 1         # passes par côté de la dernière image (affiché dans le diagnostic)
         self.ms = {}
         self.inswapper = None      # INSwapper d'insightface (mode « inswapper »), fourni par l'appelant
         self.use_trt = True
@@ -269,16 +302,22 @@ class SwapPlus:
                     so = ort.SessionOptions()
                     so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
                     providers = list(self.providers)
-                    if self.use_trt and "TensorrtExecutionProvider" in ort.get_available_providers():
-                        shapes = ",".join(f"{k}:{'x'.join(map(str, v))}" for k, v in INPUT_SHAPES[_kind(name)].items())
+                    if name.endswith(LOT):
+                        import models_plus
+                        models_plus.prepare_batch(name[:-len(LOT)], log=lambda m: setattr(self, "note", m))
+                    if self.use_trt and not self._no_trt:
+                        def shapes(n=None):   # n : taille du lot (modèle dérivé seulement)
+                            return ",".join(f"{k}:{'x'.join(map(str, v if n is None else (n,) + tuple(v[1:])))}"
+                                            for k, v in INPUT_SHAPES[_kind(name)].items())
+                        lo, opt, hi = (shapes(1), shapes(9), shapes(LOT_MAX)) if name.endswith(LOT) else (shapes(),) * 3
                         cache = os.path.join(self.dir, "trt-cache")
                         os.makedirs(cache, exist_ok=True)
                         providers.insert(0, ("TensorrtExecutionProvider", {
                             "trt_fp16_enable": _kind(name) not in FP32_MODELS,
                             "trt_engine_cache_enable": True, "trt_engine_cache_path": cache,
                             "trt_timing_cache_enable": True, "trt_timing_cache_path": cache,
-                            "trt_profile_min_shapes": shapes, "trt_profile_max_shapes": shapes,
-                            "trt_profile_opt_shapes": shapes}))
+                            "trt_profile_min_shapes": lo, "trt_profile_max_shapes": hi,
+                            "trt_profile_opt_shapes": opt}))
                     s = ort.InferenceSession(os.path.join(self.dir, name + ".onnx"), so, providers=providers)
                     self._sessions[name] = s
         return s
@@ -287,7 +326,7 @@ class SwapPlus:
         """Session si elle est prête ; sinon la prépare en arrière-plan (téléchargement d'un modèle
         facultatif, TensorRT : jusqu'à une minute) et renvoie None : le rendu continue sans elle."""
         s = self._sessions.get(name)
-        if s is None and name not in self._building:
+        if s is None and name not in self._building and name not in self._failed:
             self._building.add(name)
 
             def work():
@@ -300,6 +339,7 @@ class SwapPlus:
                     self.note = ""
                 except Exception as e:
                     self.note = f"{name} indisponible : {e}"
+                    self._failed.add(name)
                 finally:
                     self._building.discard(name)
             threading.Thread(target=work, daemon=True, name="plus-" + name).start()
@@ -315,7 +355,7 @@ class SwapPlus:
         if self.p["model"] != "inswapper":
             self._swap(crop, np.zeros(512, np.float32))
         self._occlusion(crop)
-        self._region(crop)
+        self._side(crop)
         self._restore(self._expression_of(crop), crop, 0.8)
 
     # ------------------------------------------------------------ étapes
@@ -426,6 +466,46 @@ class SwapPlus:
         img = (out[0].transpose(1, 2, 0) * 0.5 + 0.5).clip(0, 1)[:, :, ::-1]
         return (img * 255).astype(np.uint8), mask[0, 0].clip(0, 1)
 
+    def batch_session(self, wait=False):
+        """Session qui fait toutes les passes du pixel boost en un calcul, si elle est prête (préparée
+        en arrière-plan la 1re fois : environ une minute ; les passes se font une à une en attendant).
+        TensorRT seulement : sur CUDA seul, le modèle par lot ne rend pas exactement la même image."""
+        if self._no_trt or not self.use_trt or not str(self.p["model"]).startswith("hyperswap"):
+            return None
+        name = self.p["model"] + LOT
+        s = self.session(name) if wait else self.ready_session(name)
+        if s is not None and s.get_providers()[0] != "TensorrtExecutionProvider":
+            return None
+        return s
+
+    def _swap_batch(self, session, tiles, embedding):
+        """Toutes les passes du pixel boost d'un coup : tiles (n, 256, 256, 3) → images et masques."""
+        video_turn()
+        x = np.ascontiguousarray(tiles[..., ::-1].transpose(0, 3, 1, 2), np.float32)
+        x *= 1 / 127.5
+        x -= 1
+        src = np.repeat(embedding.reshape(1, -1).astype(np.float32), len(tiles), 0)
+        out, mask = session.run(None, {"source": src, "target": x})
+        out = out.transpose(0, 2, 3, 1)[..., ::-1]
+        return np.clip(out * 127.5 + 127.5, 0, 255).astype(np.uint8), mask[:, 0].clip(0, 1)
+
+    def _fit_boost(self, track_id, kps, limit):
+        """Détail adapté à la taille du visage : inutile de générer 768 px pour un visage qui en occupe
+        350 dans l'image. Le nombre de passes ne change qu'une fois la taille franchie de 6 % (sinon
+        il oscillerait d'une image à l'autre)."""
+        M = cv2.estimateAffinePartial2D(kps, ARCFACE_128 * SIZE, method=cv2.LMEDS)[0]
+        if M is None:
+            return limit
+        side = SIZE / max(float(np.hypot(M[0, 0], M[1, 0])), 1e-6)     # côté du cadre du visage, en pixels de l'image
+        need = max(1, int(np.ceil(side / (SIZE * FIT_MARGIN))))
+        prev = self._boost.get(track_id)
+        if prev is not None and abs(need - prev) == 1:
+            edge = SIZE * FIT_MARGIN * min(need, prev)
+            if abs(side - edge) < edge * 0.06:
+                need = prev
+        self._boost[track_id] = need
+        return min(limit, need)
+
     def _swap_inswapper(self, small, embedding):
         # Contigu : l'adaptateur « CUDA graph » de Deep-Live-Cam copie la mémoire telle quelle.
         blob = np.ascontiguousarray((small[:, :, ::-1].astype(np.float32) / 255).transpose(2, 0, 1)[None])
@@ -474,15 +554,23 @@ class SwapPlus:
 
     def _keep_detail(self, sharp, restored):
         """LivePortrait rend en 512 px à partir d'un visage en 256 : au-delà, le détail du pixel boost
-        serait perdu. Il est reporté là où l'expression n'a pas déplacé le visage."""
+        serait perdu. Il est reporté là où l'expression n'a pas déplacé le visage.
+        Les grandes formes (ce que l'expression a changé) sont comparées en 256 px, où le flou large
+        ne coûte presque rien ; seul le détail fin est repris à pleine taille."""
         k = self.p["detail"] / 100
         if k <= 0:
             return restored
-        sigma = 2.0 * sharp.shape[0] / SIZE
-        a, b = sharp.astype(np.float32), restored.astype(np.float32)
-        la, lb = cv2.GaussianBlur(a, (0, 0), sigma), cv2.GaussianBlur(b, (0, 0), sigma)
-        same = 1 - np.clip(cv2.GaussianBlur(np.abs(la - lb).mean(-1), (0, 0), sigma) / 16, 0, 1)
-        return np.clip(b + (a - la - (b - lb)) * (same * k)[..., None], 0, 255).astype(np.uint8)
+        n = sharp.shape[0]
+        small = lambda im: cv2.resize(im, (SIZE, SIZE), interpolation=cv2.INTER_AREA).astype(np.float32)
+        la, lb = (cv2.GaussianBlur(small(im), (0, 0), 2.0) for im in (sharp, restored))
+        same = 1 - np.clip(cv2.GaussianBlur(np.abs(la - lb).mean(-1), (0, 0), 2.0) / 16, 0, 1)
+        up = lambda im: cv2.resize(im, (n, n), interpolation=cv2.INTER_LINEAR)
+        # détail fin du visage net − détail fin du visage animé = (net − animé) − (formes du net − formes de l'animé)
+        fine = cv2.subtract(sharp, restored, dtype=cv2.CV_32F)
+        fine -= up(la - lb)
+        w = up(same * k)
+        fine *= cv2.merge([w, w, w])
+        return cv2.add(restored, fine, dtype=cv2.CV_8U)
 
     def _soften(self, m):
         return cv2.GaussianBlur(m, (0, 0), self.p["mask_soften"]) if self.p["mask_soften"] > 0 else m
@@ -539,8 +627,9 @@ class SwapPlus:
 
     def _region(self, crop):
         video_turn()            # la voix transformée passe d'abord (tour_gpu.py)
-        x = cv2.resize(crop, (512, 512))[:, :, ::-1].astype(np.float32)
-        x = np.ascontiguousarray(((x - _PARSER_MEAN) * _PARSER_SCALE).transpose(2, 0, 1)[None])
+        # Agrandissement, ordre des couleurs et moyenne en une passe (2,5 ms de moins que par numpy).
+        x = cv2.dnn.blobFromImage(crop, 1.0, (512, 512), _PARSER_MEAN_RGB, swapRB=True)
+        x *= _PARSER_SCALE4
         regions = self.p["regions"]
         if set(regions) != set(REGIONS):
             # Zones choisies : classe de chaque pixel (modèle dérivé, voir models_plus.prepare_labels).
@@ -550,14 +639,15 @@ class SwapPlus:
                 m = np.isin(label, [c for r in regions for c in REGIONS.get(r, [])]).astype(np.float32)
                 m = self._soften(m)
                 return ((m.clip(0.5, 1) - 0.5) * 2).astype(np.float32), None
-        # « Visage oui/non » calculé dans le modèle (voir models_plus.prepare_parser) : canal 0.
-        m = self.session("bisenet_face_256").run(None, {"input": x})[0][0, 0]
-        m = self._soften(m)
-        return ((m.clip(0.5, 1) - 0.5) * 2).astype(np.float32), None
+        # « Visage oui/non » calculé dans le modèle (voir models_plus.prepare_parser) : canal 0 ;
+        # canal 1 : cheveux et poils.
+        out = self.session("bisenet_face_256").run(None, {"input": x})[0][0]
+        m = self._soften(out[0])
+        return ((m.clip(0.5, 1) - 0.5) * 2).astype(np.float32), (out[0], out[1])
 
     @staticmethod
     def _lp_input(c):
-        return np.ascontiguousarray((c[:, :, ::-1].astype(np.float32) / 255).transpose(2, 0, 1)[None])
+        return cv2.dnn.blobFromImage(c, 1 / 255, swapRB=True)
 
     def _expression_of(self, crop):
         """Expression LivePortrait du vrai visage filmé."""
@@ -596,23 +686,21 @@ class SwapPlus:
         io.bind_output("output")
         gen.run_with_iobinding(io)
         out = io.copy_outputs_to_cpu()[0][0]
-        out = (out.transpose(1, 2, 0).clip(0, 1) * 255).astype(np.uint8)[:, :, ::-1]
+        out = cv2.multiply(cv2.merge([out[2], out[1], out[0]]), 255.0, dtype=cv2.CV_8U)    # borné à 0…255
         size = temp_crop.shape[0]          # LivePortrait rend en 512 px : ramené au repère de travail
         if out.shape[0] == size:
-            return np.ascontiguousarray(out)
+            return out
         return cv2.resize(out, (size, size), interpolation=cv2.INTER_AREA if size < out.shape[0] else cv2.INTER_CUBIC)
 
     def _match_color(self, key, swapped, original, mask):
         """Couleur et lumière du visage généré accordées à la vraie peau (statistiques lissées)."""
         k = self.p["color"] / 100
-        sel = mask > 0.6
-        if k <= 0 or sel.sum() < 200:
-            return swapped
-        lab_s = cv2.cvtColor(swapped, cv2.COLOR_BGR2LAB)
-        lab_o = cv2.cvtColor(original, cv2.COLOR_BGR2LAB)
         step = 2 * swapped.shape[0] // SIZE    # statistiques sur un pixel sur quatre (en 256) : bien assez
-        sub = sel[::step, ::step]
-        ps, po = lab_s[::step, ::step][sub].astype(np.float32), lab_o[::step, ::step][sub].astype(np.float32)
+        sub = mask[::step, ::step] > 0.6
+        if k <= 0 or sub.sum() * step * step < 200:
+            return swapped
+        lab = lambda im: cv2.cvtColor(np.ascontiguousarray(im[::step, ::step]), cv2.COLOR_BGR2LAB)[sub].astype(np.float32)
+        ps, po = lab(swapped), lab(original)
         st = np.concatenate([ps.mean(0), ps.std(0), po.mean(0), po.std(0)])
         prev = self._color.get(key)
         st = st if prev is None else prev + 0.35 * (st - prev)
@@ -623,42 +711,79 @@ class SwapPlus:
         # Même calcul pour chacune des 256 valeurs, appliqué en table : bien plus rapide.
         x = np.arange(256, dtype=np.float32)[:, None]
         lut = np.clip((x - ms) * (1 + (ratio - 1) * k) + ms + (mo - ms) * k, 0, 255).astype(np.uint8)
-        return cv2.cvtColor(cv2.LUT(lab_s, lut.reshape(1, 256, 3)), cv2.COLOR_LAB2BGR)
+        return cv2.cvtColor(cv2.LUT(cv2.cvtColor(swapped, cv2.COLOR_BGR2LAB), lut.reshape(1, 256, 3)), cv2.COLOR_LAB2BGR)
 
-    def _match_grain(self, swapped, original, mask):
-        """Même netteté et même grain que l'image filmée (un visage trop lisse se remarque)."""
+    def _match_grain(self, key, warped, roi, m):
+        """Même grain et même netteté que l'image filmée (un visage trop lisse se remarque).
+        Mesuré et corrigé dans l'image elle-même, après la mise en place du visage : le grain ajouté
+        a la finesse de celui du capteur quelle que soit la taille du visage ou du pixel boost (ajouté
+        avant, il était moyenné par le collage : sur une image bruitée, le visage n'en gardait que 40 %).
+        Le bruit est estimé par la médiane des écarts (les contours des yeux, de la bouche ou des
+        cils ne comptent pas comme du grain), puis lissé d'une image à l'autre."""
         k = self.p["grain"] / 100
-        sel = mask > 0.6
-        if k <= 0 or sel.sum() < 200:
-            return swapped
-        so = swapped.astype(np.float32)
-        sigma = 1.2 * swapped.shape[0] / SIZE     # même finesse de grain quelle que soit la résolution
-        hp = lambda im: im - cv2.GaussianBlur(im, (0, 0), sigma)
-        g_o = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY).astype(np.float32)
-        g_s = cv2.cvtColor(swapped, cv2.COLOR_BGR2GRAY).astype(np.float32)
-        st = swapped.shape[0] // SIZE          # pixel boost : mesure sur une partie des pixels
-        if st > 1:
-            g_o, g_s, sel_m = g_o[::st, ::st], g_s[::st, ::st], sel[::st, ::st]
-            hp_m = lambda im: im - cv2.GaussianBlur(im, (0, 0), 1.2)
-            e_o, e_s = float(hp_m(g_o)[sel_m].std()), float(hp_m(g_s)[sel_m].std())
+        if k <= 0:
+            return warped
+        sel = m > 0.6
+        if sel.sum() < 400:
+            self._grain.pop(key, None)
+            return warped
+
+        def noise_of(im):
+            g = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+            hp = cv2.subtract(g, cv2.GaussianBlur(g, (0, 0), 1.2), dtype=cv2.CV_32F)[sel]
+            return float(np.median(np.abs(hp[::max(1, hp.size // 20000)]))) * 1.4826
+        e_o, e_s = noise_of(roi), noise_of(warped)
+        # > 0 : grain manquant (écart-type à ajouter) ; < 0 : visage plus net que l'image (part de flou).
+        if e_o > e_s * 1.05:
+            want = np.sqrt(e_o ** 2 - e_s ** 2) / 0.91      # 0,91 : part d'un bruit blanc gardée par la mesure
+        elif e_s > e_o * 1.05:
+            want = -(1 - e_o / e_s)
         else:
-            e_o, e_s = float(hp(g_o)[sel].std()), float(hp(g_s)[sel].std())
-        if e_s > e_o * 1.05:                  # généré plus net que l'image : on l'adoucit d'autant
-            blur = cv2.GaussianBlur(so, (0, 0), sigma)
-            r = 1 - (1 - e_o / e_s) * k
-            so = blur + (so - blur) * r
-        elif e_o > e_s * 1.05:                # image plus granuleuse : on ajoute le grain manquant
-            sd = np.sqrt(max(0.0, e_o ** 2 - e_s ** 2)) * k
-            noise = np.empty(swapped.shape[:2], np.float32)
-            cv2.randn(noise, 0, sd)
-            so = so + noise[..., None]
-        return np.clip(so, 0, 255).astype(np.uint8)
+            want = 0.0
+        prev = self._grain.get(key)
+        want = want if prev is None else prev + 0.3 * (want - prev)
+        self._grain[key] = want
+        if want > 0.15:
+            noise = np.empty(warped.shape[:2], np.float32)
+            cv2.randn(noise, 0, want * k)
+            return cv2.add(warped, cv2.merge([noise, noise, noise]), dtype=cv2.CV_8U)
+        if want < -0.03:
+            r = 1 + want * k
+            return cv2.addWeighted(warped, r, cv2.GaussianBlur(warped, (0, 0), 1.2), 1 - r, 0)
+        return warped
+
+    @staticmethod
+    def _beard(crop, face, hair, reach=30):
+        """Expérimental. Barbe ou bouc de la personne filmée restés au bas du menton : le visage généré
+        s'arrête au menton, et les poils juste en dessous restent visibles (surtout sous un visage sans
+        barbe). Ne traite que ce qui tient dans le cadre du visage : ce qui descend sur le cou reste
+        (le reconstruire de façon réaliste a été essayé, puis abandonné).
+        Renvoie le masque (0…1, repère 256) de ce qui, sous le visage, est nettement plus sombre que
+        la peau des joues et n'est pas de la chevelure : le visage généré y est étendu — il porte à
+        cet endroit l'ombre normale du menton. Sans barbe, seule cette ombre est concernée."""
+        g = cv2.GaussianBlur(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), (0, 0), 1.5).astype(np.float32)
+        inside = face > 0.5
+        cheeks = inside[90:185]
+        if cheeks.sum() < 400:
+            return None
+        ref = float(np.median(g[90:185][cheeks]))                   # peau des joues et du nez
+        dark = np.clip((ref * 0.80 - g) / max(ref * 0.18, 1.0), 0, 1)   # 0 à 80 % de la peau, 1 à 62 %
+        k = np.zeros((2 * reach + 1, 13), np.uint8)
+        k[reach:] = 1                                             # le visage glissé vers le bas (et 6 px de côté)
+        zone = cv2.dilate(inside.astype(np.uint8), k, anchor=(6, reach)).astype(np.float32)
+        zone[:150] = 0                                            # seulement sous le nez
+        zone *= 1 - np.clip(hair * 2, 0, 1)                       # pas dans les cheveux qui tombent près du cou
+        return np.clip(cv2.GaussianBlur(dark * zone, (0, 0), 3) * 1.6, 0, 1)
 
     def _side(self, crop):
-        """Dans un fil parallèle : analyseur de visage et occlusions."""
-        region = self._region(crop)[0] if self.p["parser"] else None
+        """Dans un fil parallèle : analyseur de visage, barbe sous le menton et occlusions."""
+        region = beard = None
+        if self.p["parser"]:
+            region, raw = self._region(crop)
+            if raw is not None and self.p["beard"]:
+                beard = self._beard(crop, raw[0], raw[1])
         occlusion = self._occlusion(crop) if self.p["occlusion"] else None
-        return region, occlusion
+        return region, occlusion, beard
 
     # ------------------------------------------------------------ principal
     def process(self, frame: np.ndarray, pairs) -> np.ndarray:
@@ -697,6 +822,9 @@ class SwapPlus:
             inswapper = self.p["model"] == "inswapper" and self.inswapper is not None
             model_size = 128 if inswapper else SIZE
             total = max(1, int(self.p["boost"]))
+            if total > 1 and fixed is None and self.p["boost_fit"]:
+                total = self._fit_boost(track_id, kps, total)
+            self.boost_now = total
             work = max(SIZE, model_size * total)
             M = cv2.estimateAffinePartial2D(kps, ARCFACE_128 * work, method=cv2.LMEDS)[0]
             if M is None:
@@ -722,10 +850,14 @@ class SwapPlus:
             elif total == 1:
                 swapped, smask = self._swap(small, emb)
             else:
-                res = list(self._tiles.map(lambda t: self._swap(np.ascontiguousarray(t), emb),
-                                           _implode(small, total, model_size)))
-                swapped = _explode(np.stack([r[0] for r in res]), total, model_size)
-                smask = _explode(np.stack([r[1] for r in res]), total, model_size)
+                tiles = _implode(small, total, model_size)
+                lot = self.batch_session()
+                if lot is not None:
+                    imgs, masks = self._swap_batch(lot, tiles, emb)
+                else:
+                    res = list(self._tiles.map(lambda t: self._swap(np.ascontiguousarray(t), emb), tiles))
+                    imgs, masks = np.stack([r[0] for r in res]), np.stack([r[1] for r in res])
+                swapped, smask = _explode(imgs, total, model_size), _explode(masks, total, model_size)
             tm["swap"] = time.perf_counter()
             jobs.append(dict(t0=t0, tm=tm, track_id=track_id, work=work, M=M, big=big, crop=crop, side=side,
                              expr=expr, swapped=swapped, smask=smask, relax=relax,
@@ -735,6 +867,7 @@ class SwapPlus:
         self._fixed = kept
         alive = {t[2] for t in self._tracks} | kept
         self._motion = {k: v for k, v in self._motion.items() if k in alive}
+        self._boost = {k: v for k, v in self._boost.items() if k in alive}
         with self._turn_cv:
             seq, self._seq = self._seq, self._seq + 1
         return dict(seq=seq, jobs=jobs, alive=alive, conf=conf)
@@ -750,20 +883,31 @@ class SwapPlus:
                     before = swapped
                     swapped = self._restore(j["expr"].result(), swapped,
                                             np.interp(self.p["expression"], [0, 100], [0, 1.2]))
-                    if work > 512 or (work > SIZE and self.p["detail"] > 0):
+                    if work > SIZE:
                         swapped = self._keep_detail(before, swapped)
                 tm["expression"] = time.perf_counter()
-                region, occlusion = j["side"].result()
+                region, occlusion, beard = j["side"].result()
                 if occlusion is not None and self.p["occ_steady"] > 0:
                     self._wait_turn(prep["seq"])
                     occlusion = self._steady(j["track_id"], occlusion)
+                if beard is not None:
+                    # Lissé d'une image à l'autre : le bord du masque sous le menton ne clignote pas.
+                    self._wait_turn(prep["seq"])
+                    prev = self._chin.get(j["track_id"])
+                    if prev is not None:
+                        beard = cv2.addWeighted(prev, 0.5, beard, 0.5, 0)
+                    self._chin[j["track_id"]] = beard
                 if work != SIZE:
                     up = lambda m: None if m is None else cv2.resize(m, (work, work), interpolation=cv2.INTER_LINEAR)
-                    region, occlusion, crop = up(region), up(occlusion), j["big"]
+                    region, occlusion, beard, crop = up(region), up(occlusion), up(beard), j["big"]
                 tm["masks"] = time.perf_counter()
                 # Masques : bord progressif × masque du modèle × visage seul × occlusions.
                 box = _box_mask(work, self.p["mask_padding"], self.p["mask_blur"])
                 shape = region if region is not None else j["smask"]
+                if beard is not None and region is not None:
+                    shape = np.maximum(shape, beard)
+                    low = _box_mask_low(work, self.p["mask_padding"], self.p["mask_blur"])
+                    box = box + (low - box) * np.minimum(beard * 4, 1)
                 keep = occlusion
                 if j["relax"] > 0:
                     shape = shape + (1 - shape) * j["relax"]
@@ -774,9 +918,8 @@ class SwapPlus:
                 stat_mask = region if region is not None else mask
                 self._wait_turn(prep["seq"])
                 swapped = self._match_color(j["track_id"], swapped, crop, stat_mask)
-                swapped = self._match_grain(swapped, crop, stat_mask)
                 tm["match"] = time.perf_counter()
-                out = self._paste(out if out is not frame else frame.copy(), swapped, mask, j["M"])
+                out = self._paste(out if out is not frame else frame.copy(), swapped, mask, j["M"], j["track_id"])
                 tm["paste"] = time.perf_counter()
                 prev = j["t0"]
                 for k, v in tm.items():
@@ -786,6 +929,8 @@ class SwapPlus:
             self._wait_turn(prep["seq"])
             self._color = {k: v for k, v in self._color.items() if k in prep["alive"]}
             self._occ = {k: v for k, v in self._occ.items() if k in prep["alive"]}
+            self._grain = {k: v for k, v in self._grain.items() if k in prep["alive"]}
+            self._chin = {k: v for k, v in self._chin.items() if k in prep["alive"]}
             with self._turn_cv:
                 self._turn = max(self._turn, prep["seq"] + 1)
                 self._turn_cv.notify_all()
@@ -797,8 +942,8 @@ class SwapPlus:
         with self._turn_cv:
             self._turn_cv.wait_for(lambda: self._turn >= seq, timeout=1.0)
 
-    @staticmethod
-    def _paste(frame, crop, mask, M):
+    def _paste(self, frame, crop, mask, M, key=None):
+        """Visage remis à sa place dans l'image, grain accordé (voir _match_grain), collage progressif."""
         h, w = frame.shape[:2]
         n = crop.shape[0]
         IM = cv2.invertAffineTransform(M)
@@ -813,7 +958,9 @@ class SwapPlus:
         IMs[:, 2] -= (x0, y0)
         size = (x1 - x0, y1 - y0)
         warped = cv2.warpAffine(crop, IMs, size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
-        m = cv2.warpAffine(mask, IMs, size, flags=cv2.INTER_LINEAR)[..., None]
-        roi = frame[y0:y1, x0:x1].astype(np.float32)
-        frame[y0:y1, x0:x1] = (roi + (warped.astype(np.float32) - roi) * m).astype(np.uint8)
+        m = cv2.warpAffine(mask, IMs, size, flags=cv2.INTER_LINEAR)
+        roi = frame[y0:y1, x0:x1]
+        if key is not None:
+            warped = self._match_grain(key, warped, roi, m)
+        frame[y0:y1, x0:x1] = cv2.blendLinear(warped, roi, m, cv2.subtract(1.0, m))
         return frame

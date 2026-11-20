@@ -12,15 +12,6 @@ DEFAULTS = {
     "protect": 33,          # protection des consonnes (50 = coupée)
     "follow": 40,           # % : le volume de sortie suit celui de ta voix
     "gain": 0,              # dB
-    # voix vivante (ton bas relevé)
-    "lift_on": True,
-    "lift_floor": 5,        # dixièmes de demi-ton sous ta hauteur habituelle avant d'agir
-    "lift_amount": 100,     # % de l'écart rattrapé
-    "lift_ref": 120,        # ta hauteur normale (Hz) : en dessous, la voix est relevée
-    "lift_auto": False,     # l'apprendre toute seule en continu (sinon : le curseur, ou « Mesurer »)
-    "lively": 35,           # % d'expressivité ajoutée (mélodie élargie)
-    "lively_always": False, # expressivité pleine même quand le ton n'est pas bas
-    "lift_bright": 50,      # % de clarté ajoutée quand la voix est relevée
     # Smart
     "smart": True,
     "denoise": True,
@@ -38,9 +29,10 @@ DEFAULTS = {
     "extra": 25,            # dixièmes de seconde de contexte
     "crossfade": 4,         # centièmes de seconde
     "margin_ms": 40,        # réserve contre les à-coups de la carte graphique
+    "ahead_ms": 20,         # avance : son connu au-delà de ce qui est joué (raccords plus propres, autant de retard)
 }
 # Changent la taille des tampons : le moteur se reconfigure (un court silence).
-RESTART_KEYS = ("block", "extra", "crossfade", "denoise", "smart", "margin_ms")
+RESTART_KEYS = ("block", "extra", "crossfade", "denoise", "smart", "margin_ms", "ahead_ms")
 
 
 def find_index(pth):

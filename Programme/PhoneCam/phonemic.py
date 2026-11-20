@@ -624,7 +624,11 @@ class PhoneMic:
 # Latence demandée aux cartes son. En « low », l'entrée WASAPI avec conversion 44,1 → 48 kHz
 # (câbles VB-Audio) livre par à-coups et trop lentement : coupures en sortie.
 LATENCY = 0.03
-PHONE_INPUT = "Micro du téléphone (PhoneCam)"   # entrée réseau, à la place d'une carte son
+
+
+# Entrées qui ne sont pas des cartes son (extension locale) : nom → (brancher(rappel), débrancher()). Le son
+# y arrive par paquets irréguliers (réseau) : tampons plus larges.
+EXTRA_INPUTS = {}
 
 
 def devices(kind: str) -> list[str]:
@@ -634,6 +638,17 @@ def devices(kind: str) -> list[str]:
     wasapi = apis.index("Windows WASAPI") if "Windows WASAPI" in apis else None
     return [d["name"] for d in sd.query_devices()
             if (wasapi is None or d["hostapi"] == wasapi) and d[f"max_{kind}_channels"] > 0]
+
+
+def default_device(kind: str) -> str:
+    """Nom de l'appareil choisi par défaut dans Windows (WASAPI), ou "" s'il n'y en a pas."""
+    import sounddevice as sd
+    try:
+        api = next(h for h in sd.query_hostapis() if h["name"] == "Windows WASAPI")
+        i = api[f"default_{kind}_device"]
+        return sd.query_devices(i)["name"] if i is not None and i >= 0 else ""
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def rescan() -> None:
@@ -797,17 +812,16 @@ class TestClip:
 class AudioLink:
     """Entrée → [changeur de voix] → PhoneMic → sortie (+ écoute de contrôle facultative)."""
 
-    def __init__(self, mic: PhoneMic, server=None, voice=None):
+    def __init__(self, mic: PhoneMic, voice=None):
         self.mic = mic
         self.voice = voice              # voix.Voix : changeur de voix (actif si voice.p["enabled"])
         self.vox = False                # changeur de voix en service sur ce démarrage
         self.test = None                # TestClip : un fichier à la place du micro (banc d'essai)
         self.rec = None                 # [échantillons, nombre voulu, rappel] : enregistrer le micro brut
-        self.server = server            # PhoneServer : source du micro du téléphone
         self.running = False
         self.status = "Arrêté."
         self.monitor_gain = 1.0
-        self.muted = False              # micro coupé (bouton de l'appli en mode Appel)
+        self.muted = False              # micro coupé (pause du Direct, F3)
         self._worker = None
         self._streams = []
         self.lost_in = 0                # blocs du micro perdus (traitement en retard)
@@ -908,14 +922,11 @@ class AudioLink:
                         return i, d
                 raise RuntimeError(f"périphérique introuvable : {name}")
             ext = sd.WasapiSettings(auto_convert=True)   # 44,1 / 48 kHz : Windows convertit
-            net = in_name == PHONE_INPUT
+            net = in_name in EXTRA_INPUTS
             self._q = queue.Queue(maxsize=100)
             self._fifos = []
             self._streams = []
-            if net:
-                if self.server is None:
-                    raise RuntimeError("serveur PhoneCam absent")
-            else:
+            if not net:
                 ii, di = find(in_name, "input")
                 self._streams.append(sd.InputStream(
                     device=ii, channels=min(2, di["max_input_channels"]), samplerate=SR, blocksize=BLOCK,
@@ -929,7 +940,6 @@ class AudioLink:
                     blk = int(self.voice.p["block"]) * BLOCK
                     pad = int(self.voice.p["margin_ms"]) * SR // 1000 + (BLOCK * 5 if net else 0)
                     fifo = Fifo(pad, 2 * blk + 4 * pad, adaptive=net, pad=pad)
-                # Par le réseau, le son arrive par paquets irréguliers : tampon plus large (~100 ms).
                 elif net:
                     fifo = Fifo(BLOCK * 10, BLOCK * 40, adaptive=True)
                 else:
@@ -943,7 +953,8 @@ class AudioLink:
             self._worker = threading.Thread(target=self._work, daemon=True, name="phonemic")
             self._worker.start()
             if net:
-                self.server.audio_sink = self._net_in
+                self._detach = EXTRA_INPUTS[in_name][1]
+                EXTRA_INPUTS[in_name][0](self._net_in)
             for s in self._streams:
                 s.start()
             self.status = (f"En marche : {in_name} → {'changeur de voix → ' if self.vox else ''}{out_name}"
@@ -954,11 +965,12 @@ class AudioLink:
 
     def stop(self) -> None:
         self.running = False
+        detach, self._detach = getattr(self, "_detach", None), None
+        if detach is not None:
+            detach()
         if self._worker is not None:      # un seul fil de traitement à la fois
             self._worker.join(1)
             self._worker = None
-        if getattr(self.server, "audio_sink", None) == self._net_in:
-            self.server.audio_sink = None
         for s in self._streams:
             try:
                 s.stop()

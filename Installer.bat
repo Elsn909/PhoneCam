@@ -58,7 +58,7 @@ if errorlevel 1 (endlocal & goto :fail)
 endlocal
 
 echo.
-echo === 5/6  Logiciels du PC : OBS (camera virtuelle), ffmpeg (Studio), adb (telephone par cable)
+echo === 5/6  Logiciels du PC : OBS (camera virtuelle), ffmpeg (Studio)
 "%VPY%" -c "import cv2, sys; from cv2_enumerate_cameras import enumerate_cameras as e; sys.exit(0 if any(c.name == 'OBS Virtual Camera' for c in e(cv2.CAP_DSHOW)) else 1)" >nul 2>&1
 if errorlevel 1 (
   echo OBS Studio absent : installation avec winget ^(Windows peut demander l'autorisation^)...
@@ -68,11 +68,6 @@ where ffmpeg >nul 2>&1
 if errorlevel 1 (
   echo ffmpeg absent : installation avec winget...
   winget install -e --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
-)
-if not exist "%ROOT%\tools\platform-tools\adb.exe" (
-  echo Telechargement d'adb ^(outils officiels Android de Google^)...
-  if not exist "%ROOT%\tools" mkdir "%ROOT%\tools"
-  powershell -NoProfile -Command "Invoke-WebRequest https://dl.google.com/android/repository/platform-tools-latest-windows.zip -OutFile '%TEMP%\pt.zip'; Expand-Archive -Force '%TEMP%\pt.zip' '%ROOT%\tools'"
 )
 
 echo.

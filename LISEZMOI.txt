@@ -1,5 +1,5 @@
 PHONECAM STUDIO
-Direct : caméra du téléphone → remplacement du visage → filtres → effets → caméra virtuelle
+Direct : caméra du PC → remplacement du visage → filtres → effets → caméra virtuelle
 Studio : les mêmes outils sur des vidéos importées, en qualité maximale
 ==========================================================================
 
@@ -14,16 +14,15 @@ LE DOSSIER
   Voix\                 les voix du changeur de voix (un sous-dossier par voix : .pth et .index)
   Presets\              « Presets fournis.json » : les presets livrés avec PhoneCam
   Captures\             photos, enregistrements de la sortie et captures de diagnostic
-  Appli Android\        PhoneCam.apk, l'appli du téléphone
   Programme\            le moteur (code, Python, modèles) : rien à y toucher. Il contient aussi
                         « Lancer Deep-Live-Cam.bat », l'interface d'origine de Deep-Live-Cam, dont
                         PhoneCam se sert pour la détection des visages (facultatif).
 
 INTERFACE
-  En haut : Direct et Studio, la recherche, les quatre voyants (téléphone, moteur, caméra, micro :
+  En haut : Direct et Studio, la recherche, les voyants (caméra, moteur, sortie, micro, voix :
   un clic ouvre leur page), les presets, annuler / rétablir, l'aide.
   À gauche, un rail d'icônes choisit la page ; chaque page a ses petits onglets et ses cartes.
-  Direct : Favoris, Visage, Moteur, Retouche, Webcam, Ambiance, Sortie, Voix, Micro, Connexion, Diagnostic.
+  Direct : Favoris, Presets, Caméra, Visage, Moteur, Retouche, Webcam, Ambiance, Sortie, Voix, Micro, Diagnostic.
   Studio : Favoris, Médias, Visages, Suivi, Moteur, Retouche, Webcam, Ambiance, Couleur, Export, Voix.
   Première fois : un accueil explique les deux espaces et par où commencer (bouton « ? » en haut
   à droite pour le revoir ; F1 : raccourcis). Survoler une icône de la colonne de gauche dit à
@@ -57,7 +56,7 @@ INTERFACE
   Attention : un preset choisi dans le Studio change aussi le Direct en cours. Les anciens préréglages par branche sont dans le profil
   « Anciens préréglages ». Les pages gardent seulement les modèles fournis (Naturel, Glamour…).
   Visages : glisser une photo dans la fenêtre ; les visages récents s'échangent d'un clic.
-  Comparer (F10) : l'image du téléphone à côté du rendu, le trait se déplace à la souris. Seulement
+  Comparer (F10) : l'image de la caméra à côté du rendu, le trait se déplace à la souris. Seulement
   dans l'aperçu, jamais sur la caméra virtuelle. Molette sur l'image : zoom, double-clic : image entière.
   Diagnostic : latence, temps par étape, charge de la carte graphique, journal d'erreurs.
 
@@ -113,94 +112,35 @@ STUDIO : VIDÉOS IMPORTÉES (720p à 4K)
   ~16 img/s, rendu ~7 img/s (visage en 1024 px). Un visage plus petit va ~2 fois plus vite.
   En 1080p avec GPEN 512 : ~7 img/s. Le premier lancement prépare les modèles quelques minutes.
 
-SOURCE VIDÉO : TÉLÉPHONE OU WEBCAM DU PC
-  Page « Connexion » → « Source vidéo » : Téléphone ou Webcam du PC, l'un ou l'autre.
-  Webcam du PC : choisir la webcam et la résolution (720p conseillé), elle démarre seule et
-  repart seule au prochain lancement. Débranchée ou prise par un autre logiciel : PhoneCam
-  réessaie toutes les 2 s. « Actualiser la liste » après avoir branché une webcam.
-  Les caméras virtuelles (OBS Virtual Camera…) ne sont pas proposées : c'est la sortie de PhoneCam.
-  Avec la webcam, les images d'un téléphone connecté sont ignorées (son micro marche toujours).
-
-CONNEXION PAR CÂBLE USB (recommandé : la plus fluide)
-  Une seule fois sur le S21 :
-    Paramètres → À propos du téléphone → Informations sur le logiciel →
-    toucher 7 fois « Numéro de version », puis
-    Paramètres → Options pour les développeurs → activer « Débogage USB ».
-  Ensuite : brancher le câble, page « Connexion » → « Connecter par câble ».
-  La première fois, accepter « Autoriser le débogage USB ? » sur le téléphone (cocher
-  « Toujours autoriser »), puis recliquer sur « Connecter ». La page s'ouvre seule dans Chrome.
-  Le câble passe par « adb reverse » : le serveur n'écoute que sur le PC lui-même (127.0.0.1),
-  rien n'est exposé sur le réseau, pas de règle de pare-feu ni d'avertissement de certificat.
-
-CONNEXION WI-FI
-  Le réseau du PC doit être en profil « Privé » (Paramètres → Réseau et Internet →
-  Ethernet → Type de profil réseau → Privé). Scanner le QR code, accepter l'avertissement
-  de certificat (il est généré localement par PhoneCam).
-  Si ça bloque : Sécurité Windows → Pare-feu → Autoriser une application → « python » → « Privé ».
-
-  Le lien contient un jeton aléatoire (gardé dans data\token.txt, pour que l'appli se
-  reconnecte toute seule) : un autre appareil ne peut pas envoyer d'images sans lui.
-  Supprimer data\token.txt pour en créer un nouveau (il faudra ré-appairer l'appli).
-
-APPLI ANDROID « PhoneCam » (recommandée : continue en arrière-plan et écran éteint)
-  Installée sur le téléphone. Câble : « Connecter par câble » sur le PC ouvre l'appli et
-  démarre l'envoi. Wi-Fi : scanner le QR code, puis « 📱 Ouvrir dans l'appli PhoneCam ».
-  Ensuite l'appli se souvient du PC et se reconnecte seule (bouton Démarrer dans l'appli).
-  Caméra → H.264 matériel, micro traité (comme un appel) ou brut, image redressée sur le PC
-  selon la façon dont on tient le téléphone. Une notification permanente indique l'envoi
-  (bouton « Arrêter »). En Wi-Fi, la liaison est chiffrée et n'accepte que ce PC.
-  Si l'envoi s'arrête écran éteint : dans l'appli, toucher la ligne ⚡ (batterie non limitée).
-  Micro : « Appel » (proche), « Haut-parleur » (capte plus loin : le téléphone passe en appel
-  mains libres), « Vidéo » (tous les micros, son naturel), « Brut » ; Gain +6 à +18 dB.
-  (Pas de 540p : les caméras du S21 Ultra ne proposent que 1280×720 ou 640×360.)
-  La « Résolution du flux » des effets se calcule sur la taille de sortie, pas sur l'image reçue.
-  Latence côté téléphone réduite : stabilisation vidéo coupée, traitements caméra rapides.
-
-APPELS SNAPCHAT DEPUIS L'APPLI (onglet Appel)
-  Les chats se font sur le PC, dans le Edge de PhoneCam (profil séparé : data\snap-browser) : la page
-  y garde sa taille normale. Première fois : s'y connecter à Snapchat, puis choisir la caméra
-  « OBS Virtual Camera » et le micro « CABLE-B Output » dans ses réglages. Garder la caméra
-  virtuelle (Sortie) et le micro démarrés. Laisser cette fenêtre ouverte ; réduite pendant un appel,
-  PhoneCam la rouvre (une page réduite se met en pause). PhoneCam la laisse ouverte en se fermant.
-  Les fenêtres privées d'Edge sont ignorées. S'il y a plusieurs onglets Snapchat, PhoneCam prend le premier.
-  Appli, onglet Appel :
-    Sans appel : tes contacts, audio ou vidéo. L'appel se lance dans la page du PC.
-    Appel entrant : le téléphone vibre et l'onglet s'ouvre : décrocher ou refuser.
-    En appel : caméra (le vrai bouton de Snapchat), micro coupé, volume de sortie et choix du micro
-    de PhoneCam, filtres Snapchat, raccrocher. Toucher la petite vidéo inverse les deux.
-    Micro coupé et caméra coupée s'affichent en rouge.
-    Le bouton sous la petite vidéo passe de la caméra avant à l'arrière du téléphone, sans couper l'appel.
-    Bouton Paramètres (écran Appels et pendant l'appel) : zoom de la sortie (jusqu'à ×2,50 sur le
-    téléphone, ×4 sur le PC), pièce sombre, blush, anti-fuite. Ce sont les réglages du PC, en direct.
-    Le panneau du volume choisit aussi le micro de l'appel : c'est le menu de la petite flèche du
-    micro dans Snapchat, qui n'existe que pendant un appel. Un micro autre que CABLE-A/B ne passe plus
-    par PhoneCam (ni voix traitée, ni volume).
-  Les deux vidéos arrivent en H.264, jusqu'à 30 images/s, à la résolution reçue par la page.
-  Sortie en 1280×720 pour Snapchat : il demande une image verticale de 406×720 et, avec une sortie
-  plus grande, n'en garde qu'une partie (image zoomée). Il garde le centre vertical de l'image :
-  avec « Ajuster (bandes noires) », une image de téléphone tenu droit y entre donc en entier.
-  data\snap-call.log note les boutons vus à chaque changement d'état d'appel.
-  Seules les actions demandées depuis l'appli sont faites (pas d'automatisation).
-  Le son de l'appel sort sur le PC (pas renvoyé au téléphone).
+CAMÉRA (page « Caméra » du Direct)
+  Toute caméra que Windows voit comme une webcam : webcam USB, appareil photo ou caméra en mode
+  webcam (Osmo Pocket, GoPro, Sony, Canon… avec leur logiciel « webcam » si la marque en demande
+  un), carte de capture HDMI (Elgato Cam Link…). Un téléphone peut aussi servir de caméra :
+  « Lien avec Windows » (Windows 11 + Android : Paramètres → Bluetooth et appareils → Appareils
+  mobiles → l'utiliser comme caméra connectée), ou Camo, DroidCam, Iriun.
+  Choisir la caméra : elle démarre seule et repart seule au prochain lancement. Débranchée ou
+  prise par un autre logiciel : PhoneCam réessaie toutes les 2 s. « Actualiser la liste » après
+  en avoir branché une.
+  Chaque caméra a ses formats (MJPG, YUY2, NV12…) et certaines ne sont visibles que par Media
+  Foundation (caméras « virtuelles » de Windows 11, téléphones par Lien avec Windows). PhoneCam
+  essaie plusieurs façons de l'ouvrir (DirectShow en MJPG, DirectShow dans son format à elle,
+  Media Foundation) et garde la première qui donne de vraies images ; elle est retenue pour la
+  fois suivante. L'état sous la liste dit la taille, la cadence et la façon utilisées.
+  Résolution : 1280×720 conseillé (assez pour le visage, de la marge pour la carte graphique).
+  Images par seconde : 30 ; 25 pour une caméra réglée en PAL. Rotation : pour une caméra posée
+  à la verticale ou à l'envers.
+  Une caméra ne peut servir qu'à un logiciel à la fois : la fermer dans OBS, Discord, Teams ou le
+  logiciel de la marque. Pas besoin de passer par OBS : PhoneCam lit la caméra directement (moins
+  de retard), et « OBS Virtual Camera » est sa sortie, elle ne peut pas servir aussi d'entrée.
+  « Taille de détection » (page Moteur, Stabilité) : 640 × 640 par défaut. En 160 × 160, une
+  personne filmée à 1,5 m n'était plus trouvée (mesuré : 0 image sur 20, contre 20 sur 20 en 640) ;
+  les anciens réglages en 160 passent seuls en 640.
 
 IMAGE FIGÉE, CARTE GRAPHIQUE
   Si le pilote graphique se réinitialise (erreur 141 dans Windows), le moteur perd la carte. La
   sortie garde alors la dernière image (jamais ton vrai visage) et, après 8 secondes sans image
-  rendue, PhoneCam redémarre seul ; le téléphone se reconnecte tout seul.
+  rendue, PhoneCam redémarre seul (réglages enregistrés avant).
   Les erreurs sont notées dans data\phonecam-errors.log.
-
-CHAUFFE DU TÉLÉPHONE
-  Toujours actif : écran limité à 60 Hz (au lieu de 120) dans l'appli ; Wi-Fi laissé en
-  veille quand on passe par le câble ; écran de Snapchat envoyé au plus à 12 images/s et à
-  70 % de la taille.
-  Case « 🔋 Éco » (onglet Caméra) : caméra à 24 img/s, débit −30 %, Wi-Fi autorisé à se
-  mettre en veille, et vidéos d'appel à débit réduit. Avec l'effet « Visio » (cadence
-  24 img/s), le rendu est le même.
-  Automatique : si le téléphone devient chaud, l'appli passe d'elle-même en économie
-  (24 img/s), puis à 20 img/s et débit −50 % s'il devient très chaud. L'état thermique
-  s'affiche dans l'onglet Caméra (🌡).
-  Conseil : la recharge par le câble chauffe aussi. Sur le S21 : Paramètres → Batterie →
-  Protection de la batterie (charge limitée à 80 %).
 
 OPTIMISATION PROCESSEUR (PC)
   L'aperçu n'est plus calculé quand on ne le voit pas (Studio ouvert, fenêtre réduite) : mesuré à 28 img/s,
@@ -209,19 +149,6 @@ OPTIMISATION PROCESSEUR (PC)
   images : ~16 cœurs occupés en continu. Corrigé au lancement de PhoneCam (threads OpenMP
   endormis, OpenCV limité à 2 threads) : ~1,4 cœur, même vitesse (banc d'essai 720p30).
   La garde anti-fuite ajoute 33 ms de retard par image d'anticipation (2 par défaut).
-  Mesuré (S21 Ultra, câble) : 30 img/s en 720p, micro continu, y compris écran d'accueil
-  et écran éteint.
-  Recompiler / réinstaller : PhoneCam\android\Compiler et installer l'appli.bat
-  Tout retirer (outils ~1,6 Go + clé de registre des outils Google, et l'appli si voulu) :
-  PhoneCam\android\Desinstaller les outils Android.bat
-  Outils (portables, dans tools\android-dev) : JDK 17 Temurin, SDK Android 35, Gradle 8.10.
-  Rien dans le profil Windows ni le PATH. Seule trace hors du dossier : la clé
-  HKCU\Software\JavaSoft\Prefs\google, retirée par le script ci-dessus.
-
-SUR LE TÉLÉPHONE (page web)
-  Codage « H.264 matériel » (par défaut) : la puce vidéo du S21 compresse le flux, c'est le
-  plus fluide. « JPEG » ne sert qu'en secours. Débit 6 Mb/s conseillé (10–16 en USB).
-  ↺ change de caméra, 💡 allume la lampe (caméra arrière). Tenir le téléphone à l'horizontale.
 
 PAGES DU DIRECT
   Visage     : photo, récents, photos en plus, un visage / tous / par personne (avec seuil de
@@ -230,11 +157,14 @@ PAGES DU DIRECT
                Qualité (pixel boost, ressemblance, expressions, GFPGAN, GPEN), Masque (XSeg, zones
                remplacées, bords), Stabilité (cadrage, charge, détection), Anti-fuite, Origine
                (Poisson blend, Mouth mask).
-  Retouche   : façon Instagram / TikTok, de −100 à +100 pour la forme : Visage (taille, joues,
-               pommettes, mâchoire, menton, front, nez, bout du nez), Yeux (taille, écart, yeux de
-               chat, hauteur et angle des sourcils), Bouche (largeur, lèvres, sourire, distance
-               au nez), Corps. De 0 à 100 : Peau (lissage, éclat, cernes, hâle, taches de rousseur,
-               contouring, highlighter, blush, rouge à lèvres en 7 teintes, dents) et Regard
+  Retouche   : façon Instagram / TikTok, de −100 à +100 pour la forme : Visage (contour : taille,
+               joues, tempes, pommettes, mâchoire en V, largeur de la mâchoire, longueur et largeur
+               du menton, front ; nez : taille, largeur, arête, bout), Yeux (taille, ouverture, écart,
+               yeux de chat, hauteur et angle des sourcils), Bouche (largeur, lèvres, lèvre supérieure
+               et lèvre inférieure séparément, sourire, distance au nez), Corps. De 0 à 100 : Peau
+               (lissage, grain de peau gardé par-dessus le lissage, matifier les reflets, éclat,
+               cernes, hâle, taches de rousseur ; maquillage : contouring, highlighter, blush, rouge
+               à lèvres en 7 teintes, dents) et Regard
                (lumineux, couleur des yeux en 5 teintes, fard en 6 teintes, eyeliner, sourcils).
                Préréglages : Naturel, Glamour, Poupée, Yeux de chat, Silhouette, Caricature, Bonne
                mine, Soirée, Été, Regard clair. Filtres de maquillage : 3 à 10 ms chacun sur un
@@ -325,18 +255,19 @@ VOIX (page Voix) : changeur de voix en temps réel (RVC 2.3, optimisé) avec Sma
       des consonnes, les fausses détections et sauts d'octave sont effacés.
   Voix : hauteur (±24 demi-tons), timbre (formants), index, protection des consonnes,
   suivi du volume de ta voix, gain.
-  Voix vivante (ton bas) : « Ta hauteur normale » (Hz, ta voix joyeuse habituelle ; à régler à
-  l'oreille, ta hauteur du moment est affichée, ou « Mesurer ma voix normale », ~5 s). Quand tu
-  parles plus bas, la voix est remontée (sans à-coup, intonation gardée), sa mélodie élargie
-  (moins monotone) et un peu de clarté ajoutée : enjouée plutôt qu'éteinte.
   Voix favorites : ☆/★ à côté du nom, ou clic droit dans la bibliothèque ; elles sont en tête.
   Réglages : enregistrés tout seuls toutes les 20 s et à la fermeture (bouton « Enregistrer mes
   réglages » pour le faire tout de suite) ; ils reviennent tels quels au prochain démarrage.
   Le Direct est fait pour le temps réel seulement : l'ancien banc d'essai (fichier ou 10 s de ta
   voix rejoués en boucle) est retiré des pages Voix et Micro. Pour travailler un fichier : Studio,
   page Voix (ci-dessous).
-  Réglage : bloc 0,20 s par défaut, contexte 2,5 s, fondu 40 ms, réserve anti-coupures 40 ms.
-  Retard de la voix ≈ 0,33 s (cartes son comprises). Calcul ≈ 20 ms par bloc sur la carte
+  Réglage : bloc 0,20 s par défaut, contexte 2,5 s, fondu 40 ms, réserve anti-coupures 40 ms,
+  avance sur le son 20 ms. L'avance : le moteur attend d'avoir entendu un peu de la suite avant de
+  jouer, pour ne plus deviner la fin de chaque bloc ; ce que le modèle reçoit est alors plus proche
+  d'une conversion faite après coup (contenu reconnu : 91 % sans avance, 92 % à 20 ms, 94 % à
+  80 ms ; raccords entre blocs : ressemblance 0,83 → 0,87 → 0,89). Elle ajoute autant de retard ;
+  0 pour l'ancien comportement. Au Studio (fichiers), elle est de 100 ms : le retard n'y compte pas.
+  Retard de la voix ≈ 0,35 s (cartes son comprises). Calcul ≈ 20 ms par bloc sur la carte
   graphique (flux CUDA prioritaire, CUDA Graphs). Le retard en trop après une coupure est
   rattrapé tout seul en raccourcissant un silence. « Ajouter la latence de la vidéo » (Micro)
   tient compte du retard de la voix.
@@ -361,7 +292,7 @@ STUDIO, PAGE VOIX : transformer la voix d'un fichier (post-production)
      onglet Effets (égaliseur visuel et ses styles, sifflantes, compresseur, chaleur), onglet
      Ambiance (son de smartphone, pièce, bruit de fond), onglet Réglages fins (niveau d'entrée avant
      la voix : sensibilité, niveau automatique, moins d'écho, graves de loin ; gain de sortie ;
-     détection de la voix et voix vivante). Pendant la lecture, la courbe de l'égaliseur montre le
+     détection de la voix). Pendant la lecture, la courbe de l'égaliseur montre le
      spectre du son entendu. « Changer la voix avec un modèle » coupé : la voix d'origine est
      gardée et seuls ces effets sont appliqués (aucun modèle à charger).
      Ordre, comme en direct : niveau d'entrée → voix → effets → smartphone. Aucun décalage
@@ -374,46 +305,6 @@ STUDIO, PAGE VOIX : transformer la voix d'un fichier (post-production)
   Vitesse mesurée avec une voix fournie : 10 s de son en 0,4 s, 18 s en 0,7 s (+ ~20 s pour charger la voix
   la première fois). Moteur à part de celui du Direct : la voix en direct n'est jamais coupée ;
   sa mémoire sur la carte graphique est rendue après 10 min sans servir.
-
-MICRO DU TÉLÉPHONE COMME MICRO DU PC
-  Sur la page du téléphone : cocher « 🎤 Micro » (et décocher « 📷 Caméra » pour le micro
-  seul), puis Démarrer. « Son du micro » : traité par le téléphone (réduction de bruit,
-  anti-écho, gain automatique, comme en appel) ou brut.
-  Sur le PC, page Micro : entrée « Micro du téléphone (PhoneCam) », sortie « CABLE-B Input »,
-  Démarrer le micro. Cocher « Son brut » pour ne rien ajouter (sinon la simulation s'applique).
-  Dans n'importe quel logiciel (Discord, OBS, navigateur…) : micro « CABLE-B Output ».
-  (Facultatif : Paramètres → Son → CABLE-B Output → Propriétés → le renommer « Micro du
-  téléphone ».)
-  Le son passe par la même connexion que la caméra (câble USB ou Wi-Fi). Un tampon de
-  ~100 ms absorbe les à-coups du Wi-Fi, et grandit tout seul (jusqu'à 200 ms) s'il en manque.
-  Garder l'écran du téléphone allumé et la page au premier plan : Android coupe le micro
-  d'une page en arrière-plan.
-
-SON DU PC VERS LE TÉLÉPHONE
-  Dans l'appli du téléphone (onglet Caméra) : case « 🔊 Son du PC » et curseur de volume
-  (0 à 200 %, appliqué tout de suite, sans couper la caméra). L'envoi doit être démarré.
-  Tout ce que joue le PC sur sa sortie par défaut (capture « loopback » de Windows, sans câble
-  virtuel) part en direct : PCM 16 bits stéréo 48 kHz par paquets de 20 ms, sur la même
-  connexion que la caméra (câble USB ou Wi-Fi), ~190 ko/s. Réserve de 60 ms sur le téléphone ;
-  le retard ne s'accumule jamais (rattrapé au-delà de 200 ms). Rien n'est capté tant que la
-  case n'est pas cochée.
-  Sur le PC, page Connexion → « Son du PC vers le téléphone » : l'autoriser ou non, et l'état.
-  Avec le micro du téléphone en même temps : des écouteurs, sinon le PC s'entend en écho.
-  Fichiers : son_pc.py (PC), PcAudio.java (appli).
-
-ÉCOUTEURS BLUETOOTH (Galaxy Buds Live) SUR LE PC
-  Le PC a déjà un Bluetooth intégré qui fonctionne (Qualcomm FastConnect 7800, sur la carte
-  Wi-Fi de la carte mère : antennes vissées à l'arrière du PC). La clé USB Bluetooth est un
-  clone CSR « Generic Bluetooth Radio » refusé par Windows 11 (erreur code 31) : inutile,
-  la débrancher.
-  1. Couper le Bluetooth du téléphone (les Buds se reconnectent sinon toujours à lui).
-  2. Mode appairage : écouteurs dans le boîtier, ouvrir le couvercle ; sinon, les porter et
-     maintenir les deux zones tactiles ~3 s jusqu'aux bips.
-  3. Windows : Paramètres → Bluetooth et appareils → Appareils → « Découverte d'appareils
-     Bluetooth » = Avancé ; puis « Ajouter un appareil » → Bluetooth → Galaxy Buds Live.
-  4. Onglet Micro → « Actualiser la liste » → entrée « Casque (Galaxy Buds Live) ».
-     Quand le micro est ouvert, Windows passe les Buds en mode appel (son des écouteurs
-     moins bon) : c'est une limite du Bluetooth, pas de l'application.
 
 PRÉRÉGLAGES PERSO
   Tes réglages se gardent dans la page Presets, commune au Direct et au Studio.
@@ -527,9 +418,16 @@ RÉGLAGES AVANCÉS DU MOTEUR PLUS (page Moteur, repris de FaceFusion)
   image par image) : rien ne change tant qu'on n'y touche pas. « Réinitialiser » de la carte, ou les réglages
   avancés d'origine » (ou double-clic sur une valeur) pour revenir en arrière.
    - Pixel boost : 512 px = le modèle passe 4 fois sur des images entrelacées, assemblées en
-     512 px (FaceFusion « face_swapper_pixel_boost ») : peau, barbe, sourcils plus fins, surtout
-     visage proche de la caméra. Coût mesuré ~+15 ms par image. 768 px : ~+50 ms, trop lent
-     pour le direct. Le suivi des expressions reste calculé en 256 px.
+     512 px (FaceFusion « face_swapper_pixel_boost ») : peau, cils, sourcils plus fins, surtout
+     visage proche de la caméra ; 768 px = 9 passes. Depuis novembre 2026 les passes se font en un
+     seul calcul sur la carte graphique (modèle dérivé « …_lot », préparé la 1re fois en une minute
+     environ) : ~+8 ms par image en 512 px, ~+20 ms en 768 px (avant : +15 et +50 ms).
+     « Adapter au visage » (activé) : pas plus de passes que le visage n'occupe de place dans
+     l'image (un visage de 350 px n'a rien à gagner à être généré en 768 px).
+     « Détail conservé » (80 %) : le suivi des expressions redessine le visage en 512 px à partir
+     d'une version en 256 px ; le détail du pixel boost est reporté par-dessus, là où l'expression
+     n'a rien déplacé. Avant ce réglage, en Direct, le pixel boost était perdu dès que les
+     expressions étaient suivies (9 passes calculées pour une image presque identique à 256 px).
    - Détecteur d'occlusion (« face_occluder_model ») : version de XSeg utilisée par « Garder
      devant le visage ce qui le cache ». XSeg 1 = d'origine ; XSeg 2 et XSeg 3 (le plus récent)
      pour comparer, avec exactement le même traitement que XSeg 1 (pas les bords recalés
@@ -636,6 +534,30 @@ PERFORMANCES MESURÉES (RTX 5080, 1280×720, flux 30 img/s)
   Moteur Plus (pipeline complet) ............ ~25 img/s, latence PC ~57 ms
   → Pour le live : pas d'amélioration, ou GFPGAN si la qualité prime sur la fluidité.
 
+OPTIMISATIONS DE NOVEMBRE 2026 (mesurées, RTX 5080, image en 720 × 1280 à 30 img/s)
+  Essai complet de l'application avec moteur Plus, HyperSwap 1c, pixel boost 768 px, expressions
+  50 %, retouches (joues, pommettes, mâchoire, menton, lissage, blush) et effets webcam :
+     images traitées par seconde ............. 20 → 30 (toutes celles reçues)
+     latence ................................ ~330 ms → ~200 à 250 ms
+     moteur, par image ...................... ~100 ms → ~60 ms (2 images en chevauchement)
+     retouches, par image ................... ~40 ms → ~15 à 25 ms
+  Ce qui a changé :
+   - pixel boost : toutes les passes en un seul calcul, pas plus de passes que nécessaire, et son
+     détail réellement gardé (voir « Réglages avancés du moteur Plus ») ;
+   - grain accordé dans l'image elle-même, après la mise en place du visage : sur une image
+     bruitée (pièce sombre), le visage généré ne gardait que 40 % du grain de l'image filmée et
+     paraissait trop propre ; il en a maintenant 100 à 113 % ;
+   - couleur, collage et entrées des modèles recalculés avec moins de copies (résultat identique) ;
+   - retouches : masques de peau, de teint et de blush dessinés en petit puis agrandis (écart
+     moyen 0,04 sur 255), silhouette (détourage) calculée dans son propre fil ;
+   - effets webcam : seule la partie de l'image qui sortira est traitée (« Remplir »), et l'image
+     n'est agrandie qu'une fois, à la sortie ;
+   - les fils du flux se passent la main toutes les 1 ms au lieu de 5 (ils s'attendaient les
+     uns les autres après chaque petit calcul).
+  Expérimental (page Moteur, coupé par défaut) : « Recouvrir la barbe au bas du menton », pour un
+  visage barbu qui en reçoit un sans barbe. Effet partiel : ce qui descend sur le cou reste
+  visible (reconstruire la peau du cou de façon réaliste a été essayé, puis abandonné).
+
 CHARGE DE LA CARTE GRAPHIQUE (octobre 2026)
   Mesuré avec des réglages complets (RTX 5080, moteur Plus, filtres de forme) : 65 % de charge, 197 W.
   Sans aucun changement visible (vérifié image par image : écart moyen 0,06 sur 255, aucun
@@ -651,7 +573,7 @@ CHARGE DE LA CARTE GRAPHIQUE (octobre 2026)
   LivePortrait ~ un tiers, remplacement, XSeg), déjà optimisés.
   Le vrai levier : « Images/s traitées par l'IA » (Face swap → Stabilité).
   Les images en trop ne sont pas traitées du tout. Mesuré à 16 img/s : 38 %, 132 W ; le
-  mouvement est un peu moins fluide. « toutes » (tout à droite) : chaque image du téléphone.
+  mouvement est un peu moins fluide. « toutes » (tout à droite) : chaque image de la caméra.
   À savoir : les effets limitent déjà la sortie à leur propre cadence (« fps » des effets) ;
   traiter plus d'images que cette cadence ne sert à rien.
   Essayés puis retirés (mesuré avec des réglages complets : le compteur de charge n'a pas bougé, ces
@@ -666,9 +588,6 @@ CHARGE DE LA CARTE GRAPHIQUE (octobre 2026)
   réduit consommation et chaleur sans rien changer ici.
 
 DÉSINSTALLER
-  Supprimer le dossier de PhoneCam (ADB et clés ADB compris : Programme\tools\, Programme\data\).
-  Restent hors du dossier, à retirer à la main si voulu :
-   - les règles du pare-feu Windows pour python (Wi-Fi) ;
-   - OBS Studio (Paramètres → Applications) ;
-   - sur le téléphone : Options pour les développeurs → « Révoquer les autorisations de
-     débogage USB », puis désactiver les options pour les développeurs.
+  Supprimer le dossier de PhoneCam.
+  Restent hors du dossier, à retirer à la main si voulu : OBS Studio et ffmpeg (Paramètres →
+  Applications), VB-Cable s'il a été installé.

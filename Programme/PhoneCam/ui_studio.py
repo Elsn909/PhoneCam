@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QLabel, QLis
 
 from effects import AMBIANCES, DEFAULTS as FX_DEFAULTS, GRADE_KEYS, WEBCAM_PRESETS
 import reframe
-from reshape import DEFAULTS as SHAPE_DEFAULTS, MAKEUP_KEYS, SHADE_KEYS, SHAPE_GROUPS, SHAPE_KEYS, SHAPE_PRESETS
+from reshape import DEFAULTS as SHAPE_DEFAULTS, MAKEUP_KEYS, SHADE_KEYS, SHAPE_GROUPS, SHAPE_KEYS, SHAPE_PRESETS, SHAPE_TABS
 from studio_conf import CODECS, ENGINE_DEFAULTS, LOOK_DEFAULTS, LOOK_PRESETS, MEDIA_FILTER, QUALITIES, SIZES, TRACK_DEFAULTS
 from ui_kit import C, FavoritesPage, FlowBar, Form, Page, PresetBar, Rail, Segmented, Viewer, icon, note, to_pixmap
 from ui_live import SHADES
@@ -659,6 +659,9 @@ class StudioSpace(QWidget):
         plus_only.append(f.slider("Accord des couleurs", 0, 100, q["color"], set_("color"), lambda x: f"{x} %", default=70, key="plus_color"))
         plus_only.append(f.slider("Accord du grain", 0, 100, q["grain"], set_("grain"), lambda x: f"{x} %", default=100, key="plus_grain"))
         plus_only.append(f.check("Contour précis du visage", q["parser"], set_("parser"), key="plus_parser", default=True))
+        plus_only.append(f.check("Expérimental : recouvrir la barbe au bas du menton", q.get("beard", False), set_("beard"),
+                                 key="plus_beard", default=False,
+                                 tip="Si la personne filmée porte une barbe ou un bouc et que le nouveau visage n'en a pas : les poils qui dépassent au bas du menton sont recouverts par le visage généré. Effet partiel : ce qui descend sur le cou reste visible. À laisser coupé sur un visage imberbe. Demande « Contour précis du visage »."))
         f.slider("Opacité", 0, 100, q["opacity"], set_("opacity"), lambda x: f"{x} %", default=100, key="opacity")
         f.slider("Netteté", 0, 50, q["sharpness"], set_("sharpness"), lambda x: f"{x / 10:.1f}", default=0, key="sharpness")
 
@@ -736,7 +739,7 @@ class StudioSpace(QWidget):
                     self.panels["filtres"][k][1](values[k])
         page, f = self._form("Retouche", "filtres", "Forme du visage, peau et maquillage, sur le visage final.", {n: lambda n=n: preset(n) for n in SHAPE_PRESETS})
         for title, items in SHAPE_GROUPS:
-            f.tab(title.split(" ")[0] if title != "Maquillage et peau" else "Peau")
+            f.tab(SHAPE_TABS.get(title, title))
             f.section(title)
             for key, text, lo in items:
                 fmt = (lambda x: "neutre" if x == 0 else f"{x:+d}") if lo < 0 else (lambda x: "coupé" if x == 0 else f"{x} %")

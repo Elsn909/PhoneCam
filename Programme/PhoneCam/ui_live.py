@@ -7,20 +7,18 @@ import time
 import cv2
 import numpy as np
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QImage
+from PySide6.QtGui import QColor, QImage, QPen
 from PySide6.QtWidgets import QComboBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QMenu, QPushButton, QVBoxLayout, QWidget
 
 import phonemic
-import usb
 import webcam
 from effects import AMBIANCES, DEFAULTS, WEBCAM_PRESETS
 from framing import DEFAULTS as FRAMING_DEFAULTS
 from guard import AFTER_CHOICES, DEFAULTS as GUARD_DEFAULTS
 from phonemic import DEFAULTS as MIC_DEFAULTS
 from reshape import (DEFAULTS as SHAPE_DEFAULTS, EYE_SHADES, IRIS_SHADES, LIP_SHADES, MAKEUP_KEYS, SHADE_KEYS, SHAPE_GROUPS,
-                     SHAPE_KEYS, SHAPE_PRESETS)
+                     SHAPE_KEYS, SHAPE_PRESETS, SHAPE_TABS)
 from server import CAPTURES_DIR, DATA_DIR
-from snapweb import find_browser
 from ui_kit import (C, FlowBar, FavoritesPage, Form, Meter, Page, PresetBar, Rail, Sparkline, Toggle, Viewer, face_tile, icon, note,
                     to_qimage, to_pixmap)
 from ui_micfx import FxTab
@@ -54,7 +52,6 @@ def signed(x):
 
 class Bridge(QObject):
     frame = Signal(QImage, object)
-    usb = Signal(str)
     gpu = Signal(str)
 
 
@@ -69,16 +66,22 @@ LIVE_TIPS = {
     "Sortie": "La caméra virtuelle : taille, cadrage, protections anti-fuite.",
     "Voix": "Ta voix transformée en temps réel avec un modèle de voix.",
     "Micro": "Le micro : appareils, effets de studio, réalisme d'un téléphone.",
-    "Connexion": "Brancher le téléphone (Wi-Fi ou câble) ou une webcam.",
+    "Caméra": "La caméra filmée : webcam, appareil en mode webcam, carte de capture.",
     "Diagnostic": "Où passe le temps de chaque image, et l'état du PC.",
 }
 
 
 class LiveSpace(QWidget):
-    def __init__(self, pipeline, server, settings, registry, toast, make_qr):
+    def __init__(self, pipeline, server, settings, registry, toast):
         super().__init__()
         self.pipeline, self.server, self.settings, self.registry, self.toast = pipeline, server, settings, registry, toast
         self.setObjectName("app")
+        if settings.get("dlc_rev", 0) < 1:
+            # Détection en 160 × 160 (ancien preset « Par défaut ») : réglée pour un visage en gros plan ; une caméra
+            # posée à 1 ou 2 m ne trouvait plus le visage (mesuré à 1,5 m : 0 image sur 20, 20 sur 20 en 640).
+            if settings.get("dlc", {}).get("det_size") == 160:
+                settings["dlc"]["det_size"] = 640
+            settings["dlc_rev"] = 1
         self.dlc = dict(settings.get("dlc", {}))
         self.panels = {}
         self.mine = settings.setdefault("user_presets", {})
@@ -90,10 +93,11 @@ class LiveSpace(QWidget):
         self.target = (960, 540)
         self.synced = False
         self.states = {}                  # état des quatre voyants de la barre du haut
+        self.source_step = None           # extension locale : 1re étape de la liste de départ (texte, fait, page)
+        self.on_tick = None               # extension locale : appelé à chaque mise à jour de l'interface
         self.pending_gpu = False
         self.bridge = Bridge()
         self.bridge.frame.connect(self._frame)
-        self.bridge.usb.connect(self._usb_done)
         self.bridge.gpu.connect(lambda t: self.gpu_label.setText(t))
         pipeline.on_preview = self._on_preview
         self.setAcceptDrops(True)
@@ -123,6 +127,7 @@ class LiveSpace(QWidget):
         self.fav = FavoritesPage(registry, "Direct")
         self.rail.add("star", "Favoris", self.fav)
         self._page_presets()
+        self._page_camera()
         self._page_face()
         self.rail.add_gap()
         self._page_engine()
@@ -134,7 +139,6 @@ class LiveSpace(QWidget):
         self._page_output()
         self.voice_page = VoicePage(self)
         self._page_mic()
-        self._page_link(make_qr)
         self._page_diag()
         self._controls()
         self.fav.rebuild()
@@ -146,10 +150,6 @@ class LiveSpace(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.tick)
         self.timer.start(250)
-        self.remote_sent = {}
-        self.remote_timer = QTimer(self)
-        self.remote_timer.timeout.connect(self._remote_tick)
-        self.remote_timer.start(60)
 
     # ------------------------------------------------------------ outils
     def form(self, panel, title, subtitle="", presets=None, builtin=None):
@@ -401,15 +401,26 @@ class LiveSpace(QWidget):
         num("Netteté", "sharpness", 0, 50, int(d.get("sharpness", 0.0) * 10), 0, lambda x: f"{x / 10:.1f}", scale=10)
         check("Miroir", "mirror", False)
         check("Corriger les couleurs (Fix Blueish Cam)", "color_correction", False)
+        f.section("Expérimental")
+        check("Recouvrir la barbe au bas du menton", "plus_beard", False,
+              "Si tu portes une barbe ou un bouc et que le nouveau visage n'en a pas : les poils qui dépassent au bas du menton sont recouverts par le visage généré. Effet partiel : ce qui descend sur le cou reste visible. À laisser coupé sur un visage imberbe. Demande « Contour précis du visage ».")
+        f.note("Pour un visage barbu qui en reçoit un sans barbe. Effet partiel, coupé par défaut.")
         f.button("Réglages d'origine du moteur Plus", self._plus_best)
         f.button("Remettre les réglages avancés d'origine", self._plus_advanced)
 
         f.tab("Qualité")
         f.section("Détail")
-        boost = f.combo("Pixel boost", ["256 px (d'origine)", "512 px : plus de détails (~+15 ms)", "768 px : trop lent pour le direct"],
+        boost = f.combo("Pixel boost", ["256 px (d'origine)", "512 px : plus de détails (~+8 ms)", "768 px : détail maximal (~+20 ms)"],
                         max(0, min(2, int(d.get("plus_boost", 1)) - 1)), lambda i: es("plus_boost", i + 1), key="plus_boost", default=0,
-                        tip="Le modèle passe 4 (ou 9) fois sur des images entrelacées, assemblées en 512 (ou 768) px : peau, barbe "
-                            "et sourcils plus fins, surtout visage proche de la caméra.")
+                        tip="Le modèle passe 4 (ou 9) fois sur des images entrelacées, assemblées en 512 (ou 768) px : peau, cils "
+                            "et sourcils plus fins, surtout visage proche de la caméra. Les passes se font en un seul calcul "
+                            "sur la carte graphique (préparé la 1re fois, environ une minute).")
+        check("Adapter au visage", "plus_boost_fit", True,
+              "Pas plus de détail que le visage n'occupe de place dans l'image : loin de la caméra, 256 px suffisent "
+              "et le moteur va plus vite ; de près, il monte jusqu'au réglage ci-dessus. Aucune perte visible.")
+        num("Détail conservé", "plus_detail", 0, 100, int(d.get("plus_detail", 80)), 80, lambda x: f"{x} %",
+            tip="Le suivi des expressions redessine le visage en 512 px : le détail du pixel boost est reporté par-dessus, "
+                "là où l'expression n'a rien déplacé. À 0, le pixel boost ne sert plus dès que les expressions sont suivies.")
         num("Ressemblance à la photo", "plus_weight", 0, 100, int(d.get("plus_weight", 50)), 50,
             lambda x: "d'origine" if x == 50 else (f"+{x - 50} (plus fidèle)" if x > 50 else f"{x - 50} (plus filmé)"),
             tip="Au-dessus : plus fidèle à la photo. En dessous : un peu de la personne filmée est gardé (plus naturel).")
@@ -474,7 +485,7 @@ class LiveSpace(QWidget):
         check("Lissage temporel (Interpolation)", "enable_interpolation", False)
         num("Force du lissage", "interpolation_weight", 0, 90, int(d.get("interpolation_weight", 0.0) * 100), 0, lambda x: f"{x} %", scale=100)
         det_sizes = [640, 320, 160]
-        f.combo("Taille de détection", ["640 × 640 (précis)", "320 × 320", "160 × 160 (rapide)"],
+        f.combo("Taille de détection", ["640 × 640 (précis, conseillé)", "320 × 320", "160 × 160 (gros plan seulement)"],
                 det_sizes.index(d.get("det_size", 640)), lambda i: es("det_size", det_sizes[i]), key="det_size", default=0)
         num("Détection toutes les", "det_interval", 1, 4, int(d.get("det_interval", 1)), 1, lambda x: f"{x} image(s)")
 
@@ -514,9 +525,9 @@ class LiveSpace(QWidget):
         self.plus_adv = {"plus_boost": 0, "plus_occluder": 0, "plus_landmarker": 0, "plus_weight": 50, "plus_regions": all_regions,
                          "plus_expr_upper": True, "plus_expr_lower": True, "plus_mask_padding": 6, "plus_mask_blur": 4,
                          "plus_mask_soften": 5, "plus_occ_threshold": 50, "plus_occ_islands": 0, "plus_occ_steady": 0,
-                         "plus_guard_check": True, "plus_motion_mask": True}
+                         "plus_guard_check": True, "plus_motion_mask": True, "plus_boost_fit": True, "plus_detail": 80}
         self.plus_best = dict(self.plus_adv, plus_model=0, plus_expression=80, plus_occlusion=True, plus_parser=True, plus_color=70,
-                              plus_grain=100, plus_stabilize=50, plus_profile_smooth=70, plus_hold=True)
+                              plus_grain=100, plus_stabilize=50, plus_profile_smooth=70, plus_hold=True, plus_beard=False)
 
     def _plus_best(self):
         for key, value in self.plus_best.items():
@@ -543,7 +554,7 @@ class LiveSpace(QWidget):
         page, f = self.form("filtres", "Retouche", "Appliquée au visage final, avant les effets webcam. Fonctionne aussi sans remplacement.",
                             "filtres", {n: lambda n=n: preset(n) for n in SHAPE_PRESETS})
         for title, items in SHAPE_GROUPS:
-            f.tab(title.split(" ")[0] if title != "Maquillage et peau" else "Peau")
+            f.tab(SHAPE_TABS.get(title, title))
             f.section(title)
             for key, text, lo in items:
                 fmt = signed if lo < 0 else pct()
@@ -770,8 +781,8 @@ class LiveSpace(QWidget):
         self.meters = {"in": Meter("Entrée"), "out": Meter("Sortie")}
         for m in self.meters.values():
             f.form.addRow(m)
-        f.note("Micro du téléphone : entrée « Micro du téléphone (PhoneCam) », puis « Micro » sur la page du téléphone. "
-               "Les autres logiciels prennent « CABLE-B Output » comme micro.")
+        f.note("Entrée : ton micro. Sortie : « CABLE-B Input » ; les autres logiciels (Discord, OBS, navigateur…) "
+               "prennent alors « CABLE-B Output » comme micro.")
         f.section("Parler de plus loin", key="micro-distance")
         f.note("Avant tout le reste (changeur de voix, Smart, effets) : ta voix arrive au bon niveau même à "
                "quelques dizaines de cm du micro, et les mots restent nets.")
@@ -826,11 +837,15 @@ class LiveSpace(QWidget):
 
     def _fill_devices(self):
         try:
-            ins, outs = [phonemic.PHONE_INPUT] + phonemic.devices("input"), phonemic.devices("output")
+            ins, outs = list(phonemic.EXTRA_INPUTS) + phonemic.devices("input"), phonemic.devices("output")
         except Exception as e:  # noqa: BLE001
             ins, outs = [], []
             self.mic_status.setText(f"Audio indisponible : {e}")
-        for combo, names, key, default, none in ((self.dev_in, ins, "input", "CABLE-A Output", False),
+        # Entrée : le micro choisi dans Windows (pas un câble virtuel : le son n'y arriverait pas).
+        mic = phonemic.default_device("input")
+        if mic.startswith("CABLE"):
+            mic = next((n for n in ins if not n.startswith("CABLE")), mic)
+        for combo, names, key, default, none in ((self.dev_in, ins, "input", mic, False),
                                                  (self.dev_out, outs, "output", "CABLE-B Input", False),
                                                  (self.dev_mon, outs, "monitor", None, True)):
             combo.blockSignals(True)
@@ -861,78 +876,60 @@ class LiveSpace(QWidget):
         phonemic.rescan()
         self._fill_devices()
 
-    # ------------------------------------------------------------ Connexion
-    def _page_link(self, make_qr):
-        server, snap = self.server, self.pipeline.snap
-        page, f = self.form("connexion", "Connexion", "D'où vient l'image : le téléphone (Wi-Fi ou câble) ou une webcam.")
-        vin = self.vin = self.settings.setdefault("video_input", {"source": "phone", "cam": "", "size": "1280×720"})
-        f.section("Source vidéo")
-        f.combo("", ["Téléphone", "Webcam du PC"], int(vin["source"] == "webcam"), self._source_changed, name="Source vidéo",
-                tip="L'un ou l'autre : avec la webcam, les images d'un téléphone connecté sont ignorées.")
+    # ------------------------------------------------------------ Caméra
+    def _page_camera(self):
+        page, f = self.form("camera", "Caméra", "La caméra filmée : webcam, appareil en mode webcam, carte de capture, téléphone.")
+        vin = self.vin = self.settings.setdefault("video_input", {})
+        vin.pop("source", None)                         # ancien choix téléphone / webcam
+        vin.setdefault("cam", "")
+        if vin.get("size") not in webcam.SIZES:
+            vin["size"] = next(iter(webcam.SIZES))
+        vin.setdefault("rotate", "Aucune")
+        vin.setdefault("fps", 30)
+        cam = self.pipeline.webcam
+        cam.known = vin.setdefault("modes", {})         # façon d'ouvrir chaque caméra qui a marché
+        cam.rotate = webcam.ROTATIONS.get(vin["rotate"])
+        f.section("Caméra")
         self.cam_combo = QComboBox()
         self.cam_combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
         self.cam_combo.setMinimumContentsLength(8)
         self.cam_combo.activated.connect(lambda _i: self._webcam_apply())
-        f.form.addRow("Webcam", self.cam_combo)
+        f.form.addRow("Caméra", self.cam_combo)
         names = list(webcam.SIZES)
-        self.cam_size = f.combo("Résolution", names, names.index(vin["size"]) if vin["size"] in names else 0,
-                                lambda i: (vin.__setitem__("size", names[i]), self._webcam_apply()))
+        f.combo("Résolution", names, names.index(vin["size"]), lambda i: (vin.__setitem__("size", names[i]), self._webcam_apply()),
+                key="cam_size", default=0,
+                tip="Demandée à la caméra, qui donne la plus proche qu'elle sait faire. 1280×720 suffit au visage et "
+                    "laisse de la marge à la carte graphique ; plus grand ne sert que si la sortie l'est aussi.")
+        rates = [30, 60, 25, 24]
+        f.combo("Images par seconde", [f"{r} img/s" for r in rates], rates.index(vin["fps"]) if vin["fps"] in rates else 0,
+                lambda i: (vin.__setitem__("fps", rates[i]), self._webcam_apply()), key="cam_fps", default=0,
+                tip="Demandées à la caméra. 25 : caméras réglées en PAL (Europe). Au-delà de 30, le moteur saute des images.")
+        rots = list(webcam.ROTATIONS)
+        f.combo("Rotation", rots, rots.index(vin["rotate"]) if vin["rotate"] in rots else 0,
+                lambda i: (vin.__setitem__("rotate", rots[i]), setattr(cam, "rotate", webcam.ROTATIONS[rots[i]])),
+                key="cam_rotate", default=0, tip="Pour une caméra posée à la verticale ou à l'envers.")
         rescan = QPushButton("Actualiser la liste")
         rescan.clicked.connect(self._fill_cams)
         f.form.addRow(rescan)
         self.cam_status = f.label()
-        self.cam_rows = [self.cam_combo, self.cam_size, rescan]
         self._fill_cams()
-        self._source_changed(int(vin["source"] == "webcam"))
-        self.phone_card = f.section("Téléphone")
-        self.phone_status = f.label()
-        f.section("Son du PC vers le téléphone", key="son-pc")
-        ps, st = self.pipeline.pc_sound, self.settings
-        ps.allowed = bool(st.get("pc_sound", True))
-        f.check("Envoyer le son du PC quand l'appli le demande", ps.allowed,
-                lambda on: (setattr(ps, "allowed", bool(on)), st.__setitem__("pc_sound", bool(on))),
-                key="pc_sound", default=True,
-                tip="Tout ce que joue le PC (sa sortie par défaut) part vers le téléphone, en direct.")
-        self.pc_sound_status = f.label()
-        f.note("Sur le téléphone : case « 🔊 Son du PC » et son curseur de volume, dans l'appli PhoneCam. "
-               "Avec le micro du téléphone en même temps, mets des écouteurs (sinon le PC s'entend en écho).")
-        f.section("Câble USB (le plus fluide)")
-        f.note("Débogage USB activé, câble branché : la page s'ouvre seule sur le téléphone.")
-        self.usb_btn = QPushButton("Connecter par câble")
-        self.usb_btn.setObjectName("primary")
-        self.usb_btn.setEnabled(usb.available())
-        self.usb_btn.clicked.connect(self._usb_connect)
-        f.form.addRow(self.usb_btn)
-        self.usb_status = f.label()
-        self.usb_status.setText("" if usb.available() else "ADB absent (dossier tools).")
-        f.section("Wi-Fi", open_=False)
-        qr = QLabel()
-        qr.setPixmap(to_pixmap(make_qr(server.url)))
-        qr.setAlignment(Qt.AlignCenter)
-        f.form.addRow(qr)
-        url = QLabel(server.url)
-        url.setObjectName("note")
-        url.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        url.setWordWrap(True)
-        f.form.addRow(url)
-        f.note("Scanne le QR, accepte l'avertissement de certificat (généré localement).")
-        f.section("Snapchat Web")
-        b = QPushButton("Ouvrir Snapchat Web")
-        b.setEnabled(find_browser() is not None)
-        b.clicked.connect(snap.open)
-        f.form.addRow(b)
-        self.snap_status = f.label()
-        f.note("Un Edge séparé (data\\snap-browser), ouvert seul quand l'appli passe en Navigation. La première fois : se connecter, "
-               "choisir la caméra « OBS Virtual Camera » et le micro « CABLE-B Output » dans Snapchat, puis garder la caméra "
-               "virtuelle et le micro démarrés.")
-        self.add("plug", "Connexion", page, f)
+        f.section("Quelle caméra ?", open_=False, key="camera-aide")
+        f.note("Toute caméra que Windows voit comme une webcam : webcam USB, appareil photo ou caméra en mode webcam "
+               "(Osmo Pocket, GoPro, Sony, Canon… avec leur logiciel « webcam » si besoin), carte de capture HDMI "
+               "(Elgato Cam Link…).\n"
+               "Un téléphone : « Lien avec Windows » (Windows 11, Android : Paramètres → Bluetooth et appareils → "
+               "Appareils mobiles → utiliser comme caméra connectée), ou Camo, DroidCam, Iriun.\n"
+               "La caméra ne doit pas être ouverte dans un autre logiciel en même temps (OBS, Discord, Teams…) : "
+               "Windows ne la donne qu'à un seul à la fois. Pas besoin de passer par OBS : PhoneCam la lit directement, "
+               "et « OBS Virtual Camera » est sa sortie (elle ne peut pas servir aussi d'entrée).")
+        self.add("shot", "Caméra", page, f)
 
     def _fill_cams(self):
         try:
             names = webcam.cameras()
         except Exception as e:  # noqa: BLE001
             names = []
-            self.cam_status.setText(f"Liste des webcams indisponible : {e}")
+            self.cam_status.setText(f"Liste des caméras indisponible : {e}")
         c = self.cam_combo
         c.blockSignals(True)
         c.clear()
@@ -941,35 +938,19 @@ class LiveSpace(QWidget):
             c.setCurrentText(self.vin["cam"])
         c.blockSignals(False)
         if not names:
-            self.cam_status.setText("Aucune webcam trouvée (les caméras virtuelles ne sont pas proposées).")
-        elif self.vin["source"] == "webcam" and c.currentText() != self.vin["cam"]:
+            self.pipeline.webcam.stop()
+            self.cam_status.setText("Aucune caméra trouvée. Branche-la (ou démarre son logiciel « webcam »), puis « Actualiser la liste ».")
+        elif c.currentText() != self.vin["cam"] or not self.pipeline.webcam.running:
             self._webcam_apply()
-
-    def _source_changed(self, i):
-        self.vin["source"] = self.server.source = "webcam" if i else "phone"
-        for w in self.cam_rows:
-            w.setEnabled(bool(i))
-        self._webcam_apply()
 
     def _webcam_apply(self):
         cam = self.pipeline.webcam
         name = self.cam_combo.currentText()
-        if self.vin["source"] != "webcam" or not name:
+        if not name or not getattr(self.server, "camera_allowed", True):
             cam.stop()
             return
         self.vin["cam"] = name
-        cam.start(name, webcam.SIZES.get(self.vin["size"], (1280, 720)))
-
-    def _usb_connect(self):
-        self.usb_btn.setEnabled(False)
-        self.usb_status.setText("Connexion…")
-        server = self.server
-        threading.Thread(target=lambda: self.bridge.usb.emit(usb.connect(server.usb_port, server.usb_url, server.app_usb_url)),
-                         daemon=True).start()
-
-    def _usb_done(self, msg):
-        self.usb_status.setText(msg)
-        self.usb_btn.setEnabled(True)
+        cam.start(name, webcam.SIZES[self.vin["size"]], int(self.vin["fps"]))
 
     # ------------------------------------------------------------ Presets
     def _page_presets(self):
@@ -1085,7 +1066,7 @@ class LiveSpace(QWidget):
         sep.setStyleSheet(f"background:{C['line2']};")
         row = flow.group(right=True, spacing=4)
         self.preview_btn = tool("output", "Couper l'aperçu : un peu moins de travail pour le PC (Ctrl+P)", self.toggle_preview, True)
-        self.compare_btn = tool("compare", "Comparer avec l'image du téléphone, dans l'aperçu seulement (F10)", self.toggle_compare, True)
+        self.compare_btn = tool("compare", "Comparer avec l'image de la caméra, dans l'aperçu seulement (F10)", self.toggle_compare, True)
         self.grid_btn = tool("grid", "Grille de cadrage (ne sort pas sur la caméra)", self.toggle_guides, True)
         tool("shot", "Photo de la sortie (F8)", self.snapshot)
         self.rec_btn = tool("rec", "Enregistrer la sortie (F9)", self.toggle_record, True)
@@ -1099,10 +1080,10 @@ class LiveSpace(QWidget):
         self.bar.addLayout(info)
 
     def toggle_pause(self):
-        self.pipeline.snap._set_out("paused", not self.pipeline.snap.out_state["paused"])
+        self.pipeline.set_paused(not self.pipeline.out_freeze)
 
     def toggle_black(self):
-        self.pipeline.snap._set_out("black", not self.pipeline.snap.out_state["black"])
+        self.pipeline.set_black(not self.pipeline.out_black)
 
     def toggle_compare(self):
         self.compare = not self.compare
@@ -1135,7 +1116,7 @@ class LiveSpace(QWidget):
         before = None
         if self.compare:
             raw = self.server.latest()[1]
-            if raw is not None:        # image reçue du téléphone : dans l'aperçu local, jamais sur la sortie
+            if raw is not None:        # image de la caméra : dans l'aperçu local, jamais sur la sortie
                 before = to_qimage(self.pipeline.fitted(raw, (small.shape[1], small.shape[0])))
         self.bridge.frame.emit(to_qimage(small), before)
 
@@ -1148,6 +1129,9 @@ class LiveSpace(QWidget):
             hit = next((h for r, h in self.step_hits if r.contains(ev.position())), None)
             if ev.type() == QEvent.MouseMove:
                 self.view.setCursor(Qt.PointingHandCursor if hit else Qt.ArrowCursor)
+                if hit != getattr(self, "_step_hover", None):
+                    self._step_hover = hit
+                    self.view.update()
                 return False
             if hit == "vcam":
                 self.vbtn.setChecked(True)
@@ -1160,44 +1144,95 @@ class LiveSpace(QWidget):
             return hit is not None
         return False
 
+    def _start_card(self, p, steps):
+        """Liste de départ : une carte au milieu de l'aperçu, avec l'avancement et, pour chaque étape
+        restante, le bouton qui y mène. Les étapes faites sont cochées ; la première à faire ressort."""
+        w, h = self.view.width(), self.view.height()
+        row, pad = 42, 26
+        cw = min(440, w - 40)
+        ch = pad + 62 + len(steps) * row + pad - 16
+        x, y = (w - cw) / 2, (h - ch) / 2
+        done = sum(1 for _t, ok, _h in steps if ok)
+        self.step_hits = []
+        p.setRenderHint(p.RenderHint.Antialiasing)
+        p.setPen(QPen(QColor(C["line"]), 1))
+        p.setBrush(QColor(C["panel"]))
+        p.drawRoundedRect(QRectF(x, y, cw, ch), 14, 14)
+        font = p.font()
+        big = type(font)(font)
+        big.setFamily("Bahnschrift")
+        big.setPointSizeF(14.5)
+        p.setFont(big)
+        p.setPen(QColor(C["text"]))
+        p.drawText(QRectF(x + pad, y + pad - 6, cw - 2 * pad, 30), Qt.AlignLeft | Qt.AlignVCenter,
+                   "Tout est prêt" if done == len(steps) else "Prêt pour l'antenne ?")
+        p.setFont(font)
+        p.setPen(QColor(C["dim"]))
+        p.drawText(QRectF(x + pad, y + pad - 6, cw - 2 * pad, 30), Qt.AlignRight | Qt.AlignVCenter, f"{done} sur {len(steps)}")
+        # avancement
+        bar = QRectF(x + pad, y + pad + 32, cw - 2 * pad, 4)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(C["hover"]))
+        p.drawRoundedRect(bar, 2, 2)
+        if done:
+            p.setBrush(QColor(C["good"] if done == len(steps) else C["accent"]))
+            p.drawRoundedRect(QRectF(bar.x(), bar.y(), bar.width() * done / len(steps), 4), 2, 2)
+        first_todo = next((i for i, (_t, ok, _h) in enumerate(steps) if not ok), None)
+        hover = getattr(self, "_step_hover", None)
+        small = type(font)(font)
+        small.setPointSizeF(max(7.5, font.pointSizeF() - 1))
+        small.setBold(True)
+        for i, (text, ok, hint) in enumerate(steps):
+            ry = y + pad + 50 + i * row
+            cy = ry + row / 2
+            rect = QRectF(x + pad - 10, ry + 2, cw - 2 * pad + 20, row - 4)
+            if not ok and hover == hint:
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(C["raised"]))
+                p.drawRoundedRect(rect, 9, 9)
+            c = QPointF(x + pad + 9, cy)
+            if ok:                               # pastille verte cochée
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(C["good"]))
+                p.drawEllipse(c, 9, 9)
+                p.setPen(QPen(QColor("#0d1f18"), 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+                p.drawPolyline([QPointF(c.x() - 4, c.y()), QPointF(c.x() - 1, c.y() + 3), QPointF(c.x() + 4.5, c.y() - 3.5)])
+            else:                                # anneau numéroté ; la prochaine étape en couleur
+                col = QColor(C["accent"] if i == first_todo else C["line2"])
+                p.setPen(QPen(col, 1.6))
+                p.setBrush(Qt.NoBrush)
+                p.drawEllipse(c, 8.5, 8.5)
+                p.setFont(small)
+                p.setPen(QColor(C["accent2"] if i == first_todo else C["faint"]))
+                p.drawText(QRectF(c.x() - 9, c.y() - 9, 18, 18), Qt.AlignCenter, str(i + 1))
+                p.setFont(font)
+            p.setPen(QColor(C["dim"] if ok else C["text"]))
+            p.drawText(QRectF(x + pad + 30, ry, cw - 2 * pad - 150, row), Qt.AlignVCenter, text)
+            if not ok:
+                label = {"vcam": "Démarrer", "mic": "Démarrer"}.get(hint, hint)
+                fm = p.fontMetrics()
+                bw = fm.horizontalAdvance(label) + 30
+                btn = QRectF(x + cw - pad - bw, cy - 13, bw, 26)
+                main = i == first_todo
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(C["accent"] if main else C["hover"]))
+                p.drawRoundedRect(btn, 8, 8)
+                p.setPen(QColor("#1a0d07" if main else C["text"]))
+                p.drawText(btn, Qt.AlignCenter, label + " ›")
+                self.step_hits.append((rect, hint))
+
     def _overlay(self, p):
         """Liste de départ tant qu'aucune image n'arrive ; états importants par-dessus l'image."""
         pipe = self.pipeline
         if not self.view.has_image():
             if not self.preview_on:
                 return
-            first = (("Webcam active", self.server.fps() > 0, "Connexion") if self.server.source == "webcam"
-                     else ("Téléphone connecté", self.server.connected, "Connexion"))
+            first = self.source_step() if self.source_step else ("Caméra active", self.server.fps() > 0, "Caméra")
             steps = [first, ("Visage choisi", bool(self.settings.get("source")), "Visage"),
                      ("Caméra virtuelle démarrée", pipe.vcam_on, "vcam"), ("Micro démarré", pipe.audio.running, "mic")]
             if pipe.voice.p["enabled"]:
                 steps.append(("Voix transformée prête", pipe.voice.ready() and pipe.audio.vox, "Voix"))
-            w, h = self.view.width(), self.view.height()
-            x, y = (w - 320) / 2, (h - 190) / 2
-            self.step_hits = []
-            p.setRenderHint(p.RenderHint.Antialiasing)
-            font = p.font()
-            big = type(font)(font)
-            big.setFamily("Bahnschrift")
-            big.setPointSizeF(15)
-            p.setFont(big)
-            p.setPen(QColor(C["text"]))
-            p.drawText(QRectF(x, y, 320, 30), Qt.AlignLeft, "Prêt pour l'antenne ?")
-            p.setFont(font)
-            p.setPen(QColor(C["faint"]))
-            p.drawText(QRectF(x, y + 26, 320, 20), Qt.AlignLeft, "Clique sur une étape à faire pour y aller.")
-            for i, (text, ok, hint) in enumerate(steps):
-                cy = y + 54 + i * 30
-                p.setPen(Qt.NoPen)
-                p.setBrush(QColor(C["good"] if ok else C["line2"]))
-                p.drawEllipse(QPointF(x + 8, cy), 6, 6)
-                p.setPen(QColor(C["text"] if ok else C["dim"]))
-                p.drawText(QRectF(x + 26, cy - 12, 200, 24), Qt.AlignVCenter, text)
-                if not ok:
-                    p.setPen(QColor(C["accent"]))
-                    label = {"vcam": "Démarrer ›", "mic": "Démarrer ›"}.get(hint, hint + " ›")
-                    p.drawText(QRectF(x + 200, cy - 12, 120, 24), Qt.AlignVCenter | Qt.AlignRight, label)
-                    self.step_hits.append((QRectF(x - 6, cy - 14, 332, 28), hint))
+            self._start_card(p, steps)
             return
         self.step_hits = []
         tags = []
@@ -1205,10 +1240,9 @@ class LiveSpace(QWidget):
             tags.append("● Enregistrement")
         if pipe.guard.frozen:
             tags.append("Image figée (anti-fuite)")
-        st = pipe.snap.out_state
-        if st["paused"]:
+        if pipe.out_freeze:
             tags.append("Pause")
-        if st["black"]:
+        if pipe.out_black:
             tags.append("Image coupée")
         x = 12
         for t in tags:
@@ -1236,20 +1270,8 @@ class LiveSpace(QWidget):
         if pipe.restart_wanted:
             self.persist_cb()
             pipe.restart_now()
-        if server.error:
-            text = f"Erreur serveur : {server.error}"
-        elif server.connected:
-            text = f"Téléphone connecté ({server.link})."
-        else:
-            text = "Téléphone non connecté."
-        cam_on = server.source == "webcam"
-        if cam_on and server.connected:
-            text += " Ses images sont ignorées : la source vidéo est la webcam du PC."
-        self.phone_status.setText(text)
-        ps = pipe.pc_sound
-        self.pc_sound_status.setText(ps.status + (f"   ·   niveau {ps.level_db:.0f} dB" if ps.active() and ps.level_db > -100 else ""))
-        if cam_on or self.cam_combo.count():
-            self.cam_status.setText(pipe.webcam.status if cam_on else "Source : téléphone.")
+        if self.cam_combo.count():
+            self.cam_status.setText(pipe.webcam.status)
         e = pipe.engine
         self.engine_text = e.status if e else "Démarrage du moteur…"
         shape = pipe.shape
@@ -1267,7 +1289,6 @@ class LiveSpace(QWidget):
         if e and pipe.engine_ready and not self.synced:
             self.synced = True
             self.sync_engine()
-        dec = server.decoder
         got, done, out = server.fps(), pipe.process_rate.value(), pipe.output_rate.value()
         self.stats.setText(f"{got:.0f} reçues   ·   {done:.0f} traitées   ·   {out:.0f} sorties   ·   {pipe.latency_ms:.0f} ms de latence"
                            + (f"   ·   {pipe.guard.frozen_total} images retenues" if pipe.guard.frozen_total else ""))
@@ -1276,11 +1297,8 @@ class LiveSpace(QWidget):
         self.diag_label.setText(pipe.diag_status)
         self.rec_page.setText("Arrêter" if pipe.recording() else "Enregistrer")
         self.rec_btn.setChecked(pipe.recording())
-        st = pipe.snap.out_state
-        self.pause_btn.setChecked(st["paused"])
-        self.black_btn.setChecked(st["black"])
-        self.snap_status.setText(pipe.snap.status + (" · appli en mode " + {"call": "Appel"}.get(pipe.snap.mode, "Caméra"))
-                                 + "".join(f" · {t}" for k, t in (("paused", "PAUSE"), ("black", "image coupée"), ("muted", "micro coupé")) if st[k]))
+        self.pause_btn.setChecked(pipe.out_freeze)
+        self.black_btn.setChecked(pipe.out_black)
         mic = pipe.mic
         running = pipe.audio.running
         self.meters["in"].setValue(mic.inp.in_db if running else -60)
@@ -1292,9 +1310,7 @@ class LiveSpace(QWidget):
                                     + ("   (tu es plutôt loin)" if inp.gain > 8 else ""))
         else:
             self.dist_state.setText("")
-        phone_wait = running and self.mdev.get("input") == phonemic.PHONE_INPUT and not server.audio_active()
-        self.mic_status.setText(pipe.audio.status + (f" · traitement {mic.ms:.1f} ms / 10 ms · coupures {pipe.audio.underruns()}" if running else "")
-                                + ("\nEn attente du son du téléphone : active « Micro » sur sa page et appuie sur Démarrer." if phone_wait else ""))
+        self.mic_status.setText(pipe.audio.status + (f" · traitement {mic.ms:.1f} ms / 10 ms · coupures {pipe.audio.underruns()}" if running else ""))
         if self.run_btn.isChecked() != running:
             self.run_btn.blockSignals(True)
             self.run_btn.setChecked(running)
@@ -1306,46 +1322,30 @@ class LiveSpace(QWidget):
                 b.blockSignals(True)
                 b.setChecked(w.isChecked())
                 b.blockSignals(False)
-        source = ((got > 0, "Webcam") if cam_on else
-                  (server.connected, server.link if server.connected else "Téléphone"))
-        self.states = {"phone": source,
+        self.states = {"camera": (got > 0, "Caméra"),
                        "engine": (pipe.engine_ready, "Moteur Plus" if e and e.plus_enabled else "Moteur"),
-                       "vcam": (pipe.vcam_on, "Caméra"), "mic": (running, "Micro"),
+                       "vcam": (pipe.vcam_on, "Sortie"), "mic": (running, "Micro"),
                        "voice": (running and pipe.audio.vox and pipe.voice.ready(), "Voix")}
+        if self.on_tick:
+            self.on_tick()
         self.voice_page.tick()
         self.fx_tab.tick()
         if not self.view.has_image():
             self.view.update()
-        elif got == 0 and out == 0 and not pipe.snap.out_state["paused"]:
-            self.view.clear_image()         # téléphone parti : retour à la liste de départ
+        elif got == 0 and out == 0 and not pipe.out_freeze:
+            self.view.clear_image()         # caméra partie : retour à la liste de départ
         if self.rail.current() == self.diag_index and self.visible_now:
             self.spark.push(pipe.latency_ms)
             self.rate_label.setText(f"Actuelle : {pipe.latency_ms:.0f} ms. Reçu {got:.0f} · traité {done:.0f} · sortie {out:.0f} img/s.")
-            lines = [f"Décodage ({dec.codec})   {dec.ms:.1f} ms", f"Moteur   {e.ms if e else 0:.1f} ms",
+            cam = pipe.webcam
+            lines = [f"Caméra   {cam.size[0]}×{cam.size[1]}, {cam.fps:.0f} img/s", f"Moteur   {e.ms if e else 0:.1f} ms",
                      f"Filtres   {shape.ms:.1f} ms", f"Effets   {pipe.fx.ms:.1f} ms"]
             if plus is not None:
                 lines += [f"   {k}   {v:.1f} ms" for k, v in plus.ms.items()]
+                lines.append(f"Détail du visage généré   {256 * getattr(plus, 'boost_now', 1)} px")
             self.stage_label.setText("\n".join(lines))
             if int(time.time()) % 2 == 0:
                 self._poll_gpu()
-
-    def _remote_tick(self):
-        """Menu Paramètres de l'appli : il agit sur les vrais curseurs, PC et téléphone restent d'accord."""
-        snap = self.pipeline.snap
-        remote = {"zoom": self.frame_sliders["zoom"], "dark": self.grade_sliders["grade_dark"],
-                  "blush": self.shape_sliders["blush"], "guard": self.guard_on}
-        while snap.pc_wanted:
-            key, value = snap.pc_wanted.popitem()
-            w = remote.get(key)
-            if w is self.guard_on:
-                w.setChecked(bool(value))
-            elif w is not None:
-                w.setValue(int(value))
-        values = {k: w.isChecked() if w is self.guard_on else w.value() for k, w in remote.items()}
-        if values != self.remote_sent or snap.pc_ask:
-            self.remote_sent.update(values)
-            snap.pc_ask = False
-            self.server.send_json({"t": "pcset", **values}, key="pcset")
 
     def state(self):
         p = self.pipeline
