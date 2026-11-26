@@ -9,3 +9,8 @@ Captures/
 __pycache__/
 *.pyc
 *.part
+
+# Voix importees et index reconstitue par l'installation (trop gros pour GitHub).
+Voix/FemaleV48k/
+Voix/Voix02/Voix02.index
+Voix/.import-*/

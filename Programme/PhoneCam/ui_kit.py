@@ -1098,8 +1098,11 @@ class Rail(QWidget):
         self.group.setExclusive(True)
         self.group.idClicked.connect(self._pick)
         self.pages = []
+        self.on_select = None
 
     def _pick(self, i):
+        if self.on_select:
+            self.on_select(i)
         self.stack.show()
         self.grip.show()
         self.stack.setCurrentIndex(i)
@@ -1141,6 +1144,8 @@ class Rail(QWidget):
 
     def select(self, i):
         if 0 <= i < self.stack.count():
+            if self.on_select:
+                self.on_select(i)
             self.group.button(i).setChecked(True)
             self.stack.show()
             self.grip.show()

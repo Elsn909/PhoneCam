@@ -55,6 +55,7 @@ def scan_voices(s):
         if not os.path.isdir(folder):
             continue
         for root, _dirs, files in os.walk(folder):
+            _dirs[:] = [d for d in _dirs if not d.startswith(".")]
             if root[len(folder):].count(os.sep) > 2:
                 continue
             for fn in files:

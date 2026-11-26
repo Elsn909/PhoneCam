@@ -11,7 +11,7 @@ WORKFLOW_DIR = os.path.join(ROOT_DIR, "workflow")
 # cv2.imread/imwrite (the only image I/O this app uses) cannot decode or
 # encode GIF on 4.10 or 4.11, so offering it would silently fail. WEBP works
 # via the libwebp bundled with opencv-python.
-IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".webp")
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
 VIDEO_EXTENSIONS = (".mp4", ".mkv")
 
 # Face Mapping Data

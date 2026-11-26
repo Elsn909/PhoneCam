@@ -241,3 +241,30 @@ Voix : RVC (Retrieval-based-Voice-Conversion-WebUI, MIT), RMVPE et HuBERT / Cont
 (huggingface.co/lj1995/VoiceConversionWebUI), Silero VAD (MIT), GTCRN (MIT).
 
 **Ne s'en servir qu'avec l'accord des personnes dont on utilise le visage ou la voix.**
+
+
+### Interface simplifiée
+
+Le Direct s'ouvre sur **Ton studio** : caméra, photo du visage, modèle de voix,
+hauteur, micro et sortie virtuelle. **Réglages avancés** permet de retrouver les
+pages détaillées, la recherche et les presets. Les réglages existants restent actifs.
+
+Un pack RVC ZIP peut être importé avec **Ajouter un pack de voix** : le modèle
+principal et son index sont ajoutés à `Voix/`. Les scripts présents dans un ZIP
+ne sont ni extraits ni exécutés. Les variantes d'entraînement ne sont pas toutes
+ajoutées à la liste. Les modèles HiFi-GAN RVC v1/v2 sont pris en charge.
+
+### Prérequis et pilotes sur ce PC
+
+`Installer les pilotes.bat` vérifie OBS Virtual Camera, FFmpeg et VB-CABLE. Il installe
+les éléments manquants, depuis leurs sources officielles, après la validation
+administrateur demandée par Windows. Aucun redémarrage n'est forcé. Le pilote
+VB-CABLE doit être finalisé par un redémarrage de Windows. Le paquet téléchargé
+est contrôlé par SHA-256 et son programme d'installation par signature Authenticode.
+Ce helper est destiné à l'installation personnelle sur ce PC ; les conditions du
+fabricant s'appliquent à la redistribution ou à l'intégration dans un produit.
+
+Après installation, **Configurer automatiquement le micro** sélectionne un câble
+virtuel plutôt qu'un casque. Pour le câble de base, PhoneCam envoie sur
+**CABLE Input** et Discord / Snapchat reçoit sur **CABLE Output**. Le câble A+B
+n'est pas nécessaire pour cette configuration.

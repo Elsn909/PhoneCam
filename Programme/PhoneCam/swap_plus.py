@@ -174,7 +174,8 @@ DEFAULTS = {
     "occ_steady": 0,               # XSeg : masque stabilisé d'une image à l'autre, %
     "guard_check": True,           # anti-fuite : comparer deux systèmes de repères (voir _agreement)
     "motion_mask": True,           # tête qui bouge vite : masques assouplis (voir _relax)
-    "beard": False,                # expérimental : barbe ou bouc restés au bas du menton recouverts (voir _beard)
+    "beard_reach": 30,           # compatibilite anciens presets ; effet suspendu
+    "beard": False,                # compatibilite anciens presets ; effet suspendu
 }
 
 
@@ -252,11 +253,11 @@ class SwapPlus:
         self._temb = []            # empreinte de la personne filmée, par visage : [centre, moyenne, instant]
         self._boost = {}           # détail adapté : nombre de passes en cours, par visage
         self._grain = {}           # grain à ajouter (ou netteté à retirer) lissé, par visage
-        self._chin = {}            # masque de la barbe sous le menton lissé, par visage
         self._failed = set()       # modèles facultatifs dont la préparation a échoué : pas de nouvel essai
         self._no_trt = "TensorrtExecutionProvider" not in ort.get_available_providers()
         self.boost_now = 1         # passes par côté de la dernière image (affiché dans le diagnostic)
         self.ms = {}
+        self.beard_status = ""
         self.inswapper = None      # INSwapper d'insightface (mode « inswapper »), fourni par l'appelant
         self.use_trt = True
         # Masques et expression réelle ne dépendent que de l'image filmée : calculés pendant le swap.
@@ -407,7 +408,7 @@ class SwapPlus:
     def _relax(self, track_id, kps, M, work, now, conf):
         """0 → 1 quand les masques ne sont plus fiables : tête qui bouge vite, tournée, ou repères qui se
         contredisent. XSeg et le masque du modèle y ouvrent des trous qui montrent le vrai visage.
-        Ces masques s'assouplissent le temps du passage (retour en ~0,25 s) ; visage de face et
+        Le bord du visage s'assouplit de quelques pixels, sans modifier XSeg ; visage de face et
         immobile, le rendu ne change pas."""
         if not self.p["motion_mask"]:
             return 0.0
@@ -623,7 +624,7 @@ class SwapPlus:
         if big.any():
             out = np.where(big[labels], occlusion, out)
         self._occ[key] = out
-        return out
+        return np.minimum(out, occlusion)
 
     def _region(self, crop):
         video_turn()            # la voix transformée passe d'abord (tour_gpu.py)
@@ -638,7 +639,8 @@ class SwapPlus:
                 label = np.rint(s.run(None, {"input": x})[0][0, 0]).astype(np.uint8)
                 m = np.isin(label, [c for r in regions for c in REGIONS.get(r, [])]).astype(np.float32)
                 m = self._soften(m)
-                return ((m.clip(0.5, 1) - 0.5) * 2).astype(np.float32), None
+                raw = (np.isin(label, FACE_CLASSES).astype(np.float32), (label == 17).astype(np.float32))
+                return ((m.clip(0.5, 1) - 0.5) * 2).astype(np.float32), raw
         # « Visage oui/non » calculé dans le modèle (voir models_plus.prepare_parser) : canal 0 ;
         # canal 1 : cheveux et poils.
         out = self.session("bisenet_face_256").run(None, {"input": x})[0][0]
@@ -752,38 +754,13 @@ class SwapPlus:
             return cv2.addWeighted(warped, r, cv2.GaussianBlur(warped, (0, 0), 1.2), 1 - r, 0)
         return warped
 
-    @staticmethod
-    def _beard(crop, face, hair, reach=30):
-        """Expérimental. Barbe ou bouc de la personne filmée restés au bas du menton : le visage généré
-        s'arrête au menton, et les poils juste en dessous restent visibles (surtout sous un visage sans
-        barbe). Ne traite que ce qui tient dans le cadre du visage : ce qui descend sur le cou reste
-        (le reconstruire de façon réaliste a été essayé, puis abandonné).
-        Renvoie le masque (0…1, repère 256) de ce qui, sous le visage, est nettement plus sombre que
-        la peau des joues et n'est pas de la chevelure : le visage généré y est étendu — il porte à
-        cet endroit l'ombre normale du menton. Sans barbe, seule cette ombre est concernée."""
-        g = cv2.GaussianBlur(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), (0, 0), 1.5).astype(np.float32)
-        inside = face > 0.5
-        cheeks = inside[90:185]
-        if cheeks.sum() < 400:
-            return None
-        ref = float(np.median(g[90:185][cheeks]))                   # peau des joues et du nez
-        dark = np.clip((ref * 0.80 - g) / max(ref * 0.18, 1.0), 0, 1)   # 0 à 80 % de la peau, 1 à 62 %
-        k = np.zeros((2 * reach + 1, 13), np.uint8)
-        k[reach:] = 1                                             # le visage glissé vers le bas (et 6 px de côté)
-        zone = cv2.dilate(inside.astype(np.uint8), k, anchor=(6, reach)).astype(np.float32)
-        zone[:150] = 0                                            # seulement sous le nez
-        zone *= 1 - np.clip(hair * 2, 0, 1)                       # pas dans les cheveux qui tombent près du cou
-        return np.clip(cv2.GaussianBlur(dark * zone, (0, 0), 3) * 1.6, 0, 1)
-
     def _side(self, crop):
-        """Dans un fil parallèle : analyseur de visage, barbe sous le menton et occlusions."""
-        region = beard = None
-        if self.p["parser"]:
-            region, raw = self._region(crop)
-            if raw is not None and self.p["beard"]:
-                beard = self._beard(crop, raw[0], raw[1])
+        """Masques du visage et des objets ; aucune retouche destructive du menton."""
+        region = self._region(crop)[0] if self.p["parser"] else None
         occlusion = self._occlusion(crop) if self.p["occlusion"] else None
-        return region, occlusion, beard
+        # Ancienne option conservee pour lire les presets, mais aucun filtre sans-barbe
+        # n'est applique tant qu'un modele specialise n'a pas ete valide sur video.
+        return region, occlusion, None
 
     # ------------------------------------------------------------ principal
     def process(self, frame: np.ndarray, pairs) -> np.ndarray:
@@ -876,6 +853,7 @@ class SwapPlus:
         """Expression, masques, couleur et grain, collage."""
         out = frame
         jobs = prep["jobs"]
+        self.beard_status = ""
         try:
             for j in jobs:
                 tm, work, crop, swapped = j["tm"], j["work"], j["crop"], j["swapped"]
@@ -886,32 +864,23 @@ class SwapPlus:
                     if work > SIZE:
                         swapped = self._keep_detail(before, swapped)
                 tm["expression"] = time.perf_counter()
-                region, occlusion, beard = j["side"].result()
+                region, occlusion, _ = j["side"].result()
                 if occlusion is not None and self.p["occ_steady"] > 0:
                     self._wait_turn(prep["seq"])
                     occlusion = self._steady(j["track_id"], occlusion)
-                if beard is not None:
-                    # Lissé d'une image à l'autre : le bord du masque sous le menton ne clignote pas.
-                    self._wait_turn(prep["seq"])
-                    prev = self._chin.get(j["track_id"])
-                    if prev is not None:
-                        beard = cv2.addWeighted(prev, 0.5, beard, 0.5, 0)
-                    self._chin[j["track_id"]] = beard
                 if work != SIZE:
                     up = lambda m: None if m is None else cv2.resize(m, (work, work), interpolation=cv2.INTER_LINEAR)
-                    region, occlusion, beard, crop = up(region), up(occlusion), up(beard), j["big"]
+                    region, occlusion, crop = up(region), up(occlusion), j["big"]
                 tm["masks"] = time.perf_counter()
                 # Masques : bord progressif × masque du modèle × visage seul × occlusions.
                 box = _box_mask(work, self.p["mask_padding"], self.p["mask_blur"])
                 shape = region if region is not None else j["smask"]
-                if beard is not None and region is not None:
-                    shape = np.maximum(shape, beard)
-                    low = _box_mask_low(work, self.p["mask_padding"], self.p["mask_blur"])
-                    box = box + (low - box) * np.minimum(beard * 4, 1)
                 keep = occlusion
                 if j["relax"] > 0:
-                    shape = shape + (1 - shape) * j["relax"]
-                    keep = None if occlusion is None else occlusion + (1 - occlusion) * j["relax"]
+                    # Assouplir uniquement le bord de quelques pixels, jamais tout le crop.
+                    edge = cv2.dilate(shape, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+                    shape = shape + (edge - shape) * j["relax"]
+                    # Une main reste devant, meme pendant un mouvement rapide.
                 mask = np.minimum(box, shape)
                 if keep is not None:
                     mask = np.minimum(mask, keep)
@@ -930,7 +899,6 @@ class SwapPlus:
             self._color = {k: v for k, v in self._color.items() if k in prep["alive"]}
             self._occ = {k: v for k, v in self._occ.items() if k in prep["alive"]}
             self._grain = {k: v for k, v in self._grain.items() if k in prep["alive"]}
-            self._chin = {k: v for k, v in self._chin.items() if k in prep["alive"]}
             with self._turn_cv:
                 self._turn = max(self._turn, prep["seq"] + 1)
                 self._turn_cv.notify_all()
@@ -945,9 +913,9 @@ class SwapPlus:
     def _paste(self, frame, crop, mask, M, key=None):
         """Visage remis à sa place dans l'image, grain accordé (voir _match_grain), collage progressif."""
         h, w = frame.shape[:2]
-        n = crop.shape[0]
+        ch, cw = crop.shape[:2]
         IM = cv2.invertAffineTransform(M)
-        corners = np.array([[0, 0], [n, 0], [n, n], [0, n]], np.float32)
+        corners = np.array([[0, 0], [cw, 0], [cw, ch], [0, ch]], np.float32)
         pts = corners @ IM[:, :2].T + IM[:, 2]
         x0, y0 = np.floor(pts.min(0)).astype(int)
         x1, y1 = np.ceil(pts.max(0)).astype(int)

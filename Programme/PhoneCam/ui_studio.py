@@ -659,9 +659,8 @@ class StudioSpace(QWidget):
         plus_only.append(f.slider("Accord des couleurs", 0, 100, q["color"], set_("color"), lambda x: f"{x} %", default=70, key="plus_color"))
         plus_only.append(f.slider("Accord du grain", 0, 100, q["grain"], set_("grain"), lambda x: f"{x} %", default=100, key="plus_grain"))
         plus_only.append(f.check("Contour précis du visage", q["parser"], set_("parser"), key="plus_parser", default=True))
-        plus_only.append(f.check("Expérimental : recouvrir la barbe au bas du menton", q.get("beard", False), set_("beard"),
-                                 key="plus_beard", default=False,
-                                 tip="Si la personne filmée porte une barbe ou un bouc et que le nouveau visage n'en a pas : les poils qui dépassent au bas du menton sont recouverts par le visage généré. Effet partiel : ce qui descend sur le cou reste visible. À laisser coupé sur un visage imberbe. Demande « Contour précis du visage »."))
+        q["beard"] = False
+        f.note("Suppression de barbe suspendue : la retouche locale créait des plaques sur le menton. Un modèle spécialisé est nécessaire pour un effet sans barbe.")
         f.slider("Opacité", 0, 100, q["opacity"], set_("opacity"), lambda x: f"{x} %", default=100, key="opacity")
         f.slider("Netteté", 0, 50, q["sharpness"], set_("sharpness"), lambda x: f"{x / 10:.1f}", default=0, key="sharpness")
 
@@ -1247,7 +1246,7 @@ class StudioSpace(QWidget):
 
     def pick_photos(self):
         paths, _ = QFileDialog.getOpenFileNames(self, "Photos du visage à appliquer", "",
-                                                "Images (*.png *.jpg *.jpeg *.webp *.bmp)")
+                                     "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)")
         if paths:
             self.photos[:] = paths
             self._photos_changed()
@@ -1333,7 +1332,7 @@ class StudioSpace(QWidget):
     def _assign(self, pid, i):
         if i == 2:
             path, _ = QFileDialog.getOpenFileName(self, f"Visage pour la personne {pid + 1}", "",
-                                                  "Images (*.png *.jpg *.jpeg *.webp *.bmp)")
+                                                  "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)")
             self.assign[pid] = path or "default"
         else:
             self.assign[pid] = "default" if i == 0 else "none"

@@ -24,8 +24,8 @@ from ui_kit import (C, FlowBar, FavoritesPage, Form, Meter, Page, PresetBar, Rai
 from ui_micfx import FxTab
 from ui_voix import VoicePage
 
-IMAGES = "Images (*.png *.jpg *.jpeg *.webp *.bmp)"
-IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
+IMAGES = "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)"
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff")
 SHADES = {"lip_color": ("lip_shade", "Teinte des lèvres", LIP_SHADES), "eyeshadow": ("eyeshadow_shade", "Teinte du fard", EYE_SHADES),
           "iris": ("iris_shade", "Teinte des yeux", IRIS_SHADES)}
 REC_TIMES = [("10 s", 10), ("30 s", 30), ("1 min", 60), ("5 min", 300)]
@@ -72,6 +72,8 @@ LIVE_TIPS = {
 
 
 class LiveSpace(QWidget):
+    simple_mode_changed = Signal(bool)
+
     def __init__(self, pipeline, server, settings, registry, toast):
         super().__init__()
         self.pipeline, self.server, self.settings, self.registry, self.toast = pipeline, server, settings, registry, toast
@@ -141,15 +143,41 @@ class LiveSpace(QWidget):
         self._page_mic()
         self._page_diag()
         self._controls()
+        self.simple_mode = not bool(settings.get("ui_advanced", False))
+        from ui_simple import SimpleDashboard
+        self.dashboard = SimpleDashboard(self)
+        self.home_index = self.rail.add("live", "Essentiel", self.dashboard)
+        home_button = self.rail.group.button(self.home_index)
+        self.rail.rail_lay.removeWidget(home_button)
+        self.rail.rail_lay.insertWidget(0, home_button)
+        self.rail.on_select = self._page_selected
+        self.set_simple_mode(self.simple_mode)
         self.fav.rebuild()
         self.rail.describe(LIVE_TIPS)
-        self.rail.select(int(settings.get("ui_tab", 1)) % self.rail.stack.count())
+        self.rail.select(self.home_index if self.simple_mode else int(settings.get("ui_tab", 1)) % self.rail.stack.count())
         if settings.get("source"):
             self._show_thumb(settings["source"])
         self._refresh_pairs()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.tick)
         self.timer.start(250)
+
+    def _page_selected(self, index):
+        if self.simple_mode and index != self.home_index:
+            self.set_simple_mode(False, select_home=False)
+
+    def set_simple_mode(self, simple, select_home=True):
+        self.simple_mode = bool(simple)
+        self.settings["ui_advanced"] = not self.simple_mode
+        self.rail.rail.setVisible(not self.simple_mode)
+        flow = self.bar.itemAt(0).widget()
+        if flow is not None:
+            flow.setVisible(not self.simple_mode)
+        if self.simple_mode and select_home:
+            self.rail.select(self.home_index)
+        if hasattr(self, "dashboard"):
+            self.dashboard.refresh()
+        self.simple_mode_changed.emit(self.simple_mode)
 
     # ------------------------------------------------------------ outils
     def form(self, panel, title, subtitle="", presets=None, builtin=None):
@@ -402,9 +430,8 @@ class LiveSpace(QWidget):
         check("Miroir", "mirror", False)
         check("Corriger les couleurs (Fix Blueish Cam)", "color_correction", False)
         f.section("Expérimental")
-        check("Recouvrir la barbe au bas du menton", "plus_beard", False,
-              "Si tu portes une barbe ou un bouc et que le nouveau visage n'en a pas : les poils qui dépassent au bas du menton sont recouverts par le visage généré. Effet partiel : ce qui descend sur le cou reste visible. À laisser coupé sur un visage imberbe. Demande « Contour précis du visage ».")
-        f.note("Pour un visage barbu qui en reçoit un sans barbe. Effet partiel, coupé par défaut.")
+        d["plus_beard"] = False
+        f.note("Suppression de barbe suspendue : la retouche locale créait des plaques sur le menton. Un modèle spécialisé est nécessaire pour un effet sans barbe.")
         f.button("Réglages d'origine du moteur Plus", self._plus_best)
         f.button("Remettre les réglages avancés d'origine", self._plus_advanced)
 
@@ -471,7 +498,7 @@ class LiveSpace(QWidget):
         num("Stabilisation de profil", "plus_profile_smooth", 0, 100, int(d.get("plus_profile_smooth", 70)), 70, pct("coupée"))
         check("Visage manqué : garder le précédent", "plus_hold", True)
         check("Assouplir les masques quand la tête bouge vite", "plus_motion_mask", True,
-              "Sur une image floue, XSeg et le masque du modèle ouvrent des trous sur le vrai visage. Tête immobile : aucun changement.")
+              "Assouplit le bord du visage de quelques pixels pendant les mouvements. Le masque des mains et objets reste prioritaire.")
         landmarkers = ["detector", "hrffa"]
         f.combo("Repères du visage", ["Détecteur InsightFace (d'origine)", "HRFFA : tient mieux de profil"],
                 landmarkers.index(d.get("plus_landmarker")) if d.get("plus_landmarker") in landmarkers else 0,
@@ -527,7 +554,7 @@ class LiveSpace(QWidget):
                          "plus_mask_soften": 5, "plus_occ_threshold": 50, "plus_occ_islands": 0, "plus_occ_steady": 0,
                          "plus_guard_check": True, "plus_motion_mask": True, "plus_boost_fit": True, "plus_detail": 80}
         self.plus_best = dict(self.plus_adv, plus_model=0, plus_expression=80, plus_occlusion=True, plus_parser=True, plus_color=70,
-                              plus_grain=100, plus_stabilize=50, plus_profile_smooth=70, plus_hold=True, plus_beard=False)
+                              plus_grain=100, plus_stabilize=50, plus_profile_smooth=70, plus_hold=True, plus_beard=False, plus_beard_reach=30)
 
     def _plus_best(self):
         for key, value in self.plus_best.items():
@@ -841,21 +868,25 @@ class LiveSpace(QWidget):
         except Exception as e:  # noqa: BLE001
             ins, outs = [], []
             self.mic_status.setText(f"Audio indisponible : {e}")
+        from audio_routing import preferred_output
+        output = preferred_output(outs, self.mdev.get("output", ""))
         # Entrée : le micro choisi dans Windows (pas un câble virtuel : le son n'y arriverait pas).
         mic = phonemic.default_device("input")
         if mic.startswith("CABLE"):
             mic = next((n for n in ins if not n.startswith("CABLE")), mic)
         for combo, names, key, default, none in ((self.dev_in, ins, "input", mic, False),
-                                                 (self.dev_out, outs, "output", "CABLE-B Input", False),
+                                                 (self.dev_out, outs, "output", output, False),
                                                  (self.dev_mon, outs, "monitor", None, True)):
             combo.blockSignals(True)
             combo.clear()
             if none:
                 combo.addItem("Aucune")
             combo.addItems(names)
-            want = self.mdev.get(key) or next((n for n in names if default and n.startswith(default)), None)
+            want = (output if key == "output" else self.mdev.get(key)) or next((n for n in names if default and n.startswith(default)), None)
             if want and combo.findText(want) >= 0:
                 combo.setCurrentText(want)
+            elif key == "output":
+                combo.setCurrentIndex(-1)  # Ne pas envoyer la voix dans un ecran ou un casque par accident.
             combo.blockSignals(False)
 
     def _mic_run(self, on):
@@ -1283,7 +1314,9 @@ class LiveSpace(QWidget):
         plus = e._plus if e and e._plus is not None and e.plus_enabled else None
         if e and e.plus_status:
             note_ = getattr(plus, "note", "") if plus else ""
-            self.plus_status.setText(e.plus_status + (f"\n{note_}" if note_ else ""))
+            beard_note = getattr(plus, "beard_status", "") if plus is not None else ""
+            self.plus_status.setText(e.plus_status + (f"\n{note_}" if note_ else "")
+                                     + (f"\n{beard_note}" if beard_note else ""))
             if not e.plus_enabled and self.plus_on.isChecked():
                 self.plus_on.setChecked(False)  # échec du chargement
         if e and pipe.engine_ready and not self.synced:
@@ -1329,6 +1362,8 @@ class LiveSpace(QWidget):
         if self.on_tick:
             self.on_tick()
         self.voice_page.tick()
+        if hasattr(self, "dashboard"):
+            self.dashboard.refresh()
         self.fx_tab.tick()
         if not self.view.has_image():
             self.view.update()

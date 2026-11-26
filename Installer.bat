@@ -14,15 +14,11 @@ if not exist "%TEMP%" mkdir "%TEMP%"
 
 echo.
 echo === 1/6  Python 3.12
-set "PY="
-py -3.12 -c "import sys" >nul 2>&1 && set "PY=py -3.12"
-if not defined PY (
-  python -c "import sys; sys.exit(sys.version_info[:2] != (3, 12))" >nul 2>&1 && set "PY=python"
-)
+call :find_python
 if not defined PY (
   echo Python 3.12 absent : installation avec winget...
-  winget install -e --id Python.Python.3.12 --scope user --accept-package-agreements --accept-source-agreements
-  py -3.12 -c "import sys" >nul 2>&1 && set "PY=py -3.12"
+  winget install -e --id Python.Python.3.12 --source winget --scope user --accept-package-agreements --accept-source-agreements
+  call :find_python
 )
 if not defined PY (
   echo.
@@ -58,23 +54,17 @@ if errorlevel 1 (endlocal & goto :fail)
 endlocal
 
 echo.
-echo === 5/6  Logiciels du PC : OBS (camera virtuelle), ffmpeg (Studio)
-"%VPY%" -c "import cv2, sys; from cv2_enumerate_cameras import enumerate_cameras as e; sys.exit(0 if any(c.name == 'OBS Virtual Camera' for c in e(cv2.CAP_DSHOW)) else 1)" >nul 2>&1
-if errorlevel 1 (
-  echo OBS Studio absent : installation avec winget ^(Windows peut demander l'autorisation^)...
-  winget install -e --id OBSProject.OBSStudio --accept-package-agreements --accept-source-agreements
-)
-where ffmpeg >nul 2>&1
-if errorlevel 1 (
-  echo ffmpeg absent : installation avec winget...
-  winget install -e --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
-)
+echo === 5/6  Pilotes et logiciels manquants (installation automatique)
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File "%ROOT%\Install-Drivers.ps1" -Install
+set "DRIVER_RESULT=%ERRORLEVEL%"
+if "%DRIVER_RESULT%"=="3010" echo [!] Un redemarrage de Windows est necessaire pour finaliser les pilotes.
+if not "%DRIVER_RESULT%"=="0" if not "%DRIVER_RESULT%"=="3010" goto :fail
 
 echo.
 echo === 6/6  Verifications
 "%VPY%" -c "import torch, onnxruntime, insightface, PySide6, cv2; print('Carte graphique :', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'AUCUNE carte NVIDIA vue par PyTorch'); print('onnxruntime :', ', '.join(onnxruntime.get_available_providers()))"
 "%VPY%" -c "import cv2, sys; from cv2_enumerate_cameras import enumerate_cameras as e; sys.exit(0 if any(c.name == 'OBS Virtual Camera' for c in e(cv2.CAP_DSHOW)) else 1)" >nul 2>&1 || echo [!] OBS Virtual Camera pas encore visible : redemarrer le PC apres l'installation d'OBS.
-"%VPY%" -c "import sounddevice as s, sys; sys.exit(0 if any('CABLE-A' in d['name'] for d in s.query_devices()) else 1)" >nul 2>&1 || echo [i] VB-Cable A+B absent : seulement utile pour le micro simule ^(voir LISEZMOI.txt^).
+"%VPY%" -c "import sounddevice as s, sys; sys.exit(0 if any(d['name'].startswith(('CABLE Input', 'CABLE-A Input', 'CABLE-B Input')) for d in s.query_devices()) else 1)" >nul 2>&1 || echo [!] Micro virtuel non detecte : redemarre Windows ou lance "Installer les pilotes.bat".
 if not exist "%TOP%\Captures" mkdir "%TOP%\Captures"
 rmdir /s /q "%TEMP%" 2>nul
 echo.
@@ -87,3 +77,22 @@ echo.
 echo Echec de l'installation ^(message ci-dessus^). Relancer Installer.bat reprend ou il s'est arrete.
 pause
 exit /b 1
+
+:find_python
+rem Le PATH de ce terminal reste ancien apres l'installation par winget.
+set "PY="
+call :try_python "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+call :try_python "%ProgramFiles%\Python312\python.exe"
+call :try_python "%ProgramFiles(x86)%\Python312\python.exe"
+if defined PY exit /b 0
+py -3.12 -c "import sys; sys.exit(sys.version_info[:2] != (3, 12))" >nul 2>&1 && set "PY=py -3.12"
+if defined PY exit /b 0
+python -c "import sys; sys.exit(sys.version_info[:2] != (3, 12))" >nul 2>&1 && set "PY=python"
+exit /b 0
+
+:try_python
+if defined PY exit /b 0
+if not exist "%~1" exit /b 0
+"%~1" -c "import sys; sys.exit(sys.version_info[:2] != (3, 12))" >nul 2>&1
+if not errorlevel 1 set "PY="%~1""
+exit /b 0

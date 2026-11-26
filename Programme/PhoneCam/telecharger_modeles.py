@@ -3,6 +3,7 @@ Taille ou CRC32 vérifiés ; relancer reprend ce qui manque. À lancer avec ~ = 
 Prépare aussi les voix fournies (dossier « Voix » à côté du lanceur) : GitHub refuse les fichiers de plus
 de 100 Mo, les gros .index y sont donc coupés en morceaux (.001, .002…), recollés ici."""
 import glob
+import hashlib
 import os
 import shutil
 import sys
@@ -19,20 +20,34 @@ APP = ["inswapper_128_fp16.onnx", "gfpgan-1024.onnx", "GPEN-BFR-256.onnx", "GPEN
 # Changeur de voix (RVC) : contenu (HuBERT / ContentVec), hauteur (RMVPE), détection de voix (Silero),
 # débruitage (GTCRN). (fichier dans data\models-voix, adresse, taille en octets)
 RVC = "https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/"
+# Revision fixe : master peut remplacer le modele et changer sa taille.
+SILERO_REV = "5cd7945676eb32225748052e2e6a0580e4686a08"  # v6.2.3
+VOICE_SHA256 = {
+    "silero_vad.onnx": "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3",
+}
 VOICE = [
     ("hubert_base/config.json", RVC + "hubert_base/config.json", 1492),
     ("hubert_base/preprocessor_config.json", RVC + "hubert_base/preprocessor_config.json", 225),
     ("hubert_base/pytorch_model.bin", RVC + "hubert_base/pytorch_model.bin", 189206711),
     ("rmvpe.pt", RVC + "rmvpe.pt", 181184272),
-    ("silero_vad.onnx", "https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx", 2327524),
+    ("silero_vad.onnx", f"https://raw.githubusercontent.com/snakers4/silero-vad/{SILERO_REV}/src/silero_vad/data/silero_vad.onnx", 2327524),
     ("gtcrn_simple.onnx", "https://github.com/Xiaobin-Rong/gtcrn/raw/main/stream/onnx_models/gtcrn_simple.onnx", 535190),
     ("LICENSE-silero.txt", "https://raw.githubusercontent.com/snakers4/silero-vad/master/LICENSE", None),
     ("LICENSE-gtcrn.txt", "https://raw.githubusercontent.com/Xiaobin-Rong/gtcrn/main/LICENSE", None),
 ]
 
 
-def fetch(url, path, size):
-    if os.path.isfile(path) and (size is None or os.path.getsize(path) == size):
+def fetch(url, path, size, sha256=None):
+    def valid_hash(candidate):
+        if sha256 is None:
+            return True
+        digest = hashlib.sha256()
+        with open(candidate, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                digest.update(chunk)
+        return digest.hexdigest() == sha256
+
+    if os.path.isfile(path) and (size is None or os.path.getsize(path) == size) and valid_hash(path):
         return True
     os.makedirs(os.path.dirname(path), exist_ok=True)
     part = path + ".part"
@@ -42,7 +57,11 @@ def fetch(url, path, size):
         with urllib.request.urlopen(req, timeout=60) as r, open(part, "wb") as f:
             shutil.copyfileobj(r, f, 1 << 20)
         if size is not None and os.path.getsize(part) != size:
-            print(f"  taille inattendue pour {os.path.basename(path)}")
+            print(f"  taille inattendue pour {os.path.basename(path)} : {os.path.getsize(part)} octets recus, {size} attendus")
+            os.remove(part)
+            return False
+        if not valid_hash(part):
+            print(f"  SHA-256 incorrect pour {os.path.basename(path)} : fichier rejete")
             os.remove(part)
             return False
         os.replace(part, path)
@@ -54,7 +73,8 @@ def fetch(url, path, size):
 
 def voice_models():
     dest = os.path.join(ROOT, "data", "models-voix")
-    return [name for name, url, size in VOICE if not fetch(url, os.path.join(dest, *name.split("/")), size)]
+    return [name for name, url, size in VOICE
+            if not fetch(url, os.path.join(dest, *name.split("/")), size, VOICE_SHA256.get(name))]
 
 
 def join_voices():
