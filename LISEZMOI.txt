@@ -205,7 +205,7 @@ MICRO (page Micro) : effets de voix et petit réalisme de smartphone
 VOIX (page Voix) : changeur de voix en temps réel (RVC 2.3, optimisé) avec Smart
   Le son passe : micro → voix transformée → effets et ambiance (page Micro) → sortie. Un modèle à la fois : un .pth RVC (v1 ou v2, 32/40/48 kHz) et son .index.
   « Bibliothèque » : tes dossiers de voix (un sous-dossier par voix) ; un clic charge (1 à 3 s).
-  Voix fournies : Voix01 et Voix02, dans le dossier « Voix » à côté de « Lancer PhoneCam.bat ». Au
+  Voix fournies : Voix01, Voix02 et Voix03, dans le dossier « Voix » à côté de « Lancer PhoneCam.bat ». Au
   premier lancement, ce dossier devient le dossier de voix et Voix01 est choisie (le changeur reste
   coupé tant qu'on ne l'active pas). Pour en ajouter : les ranger dans ce dossier, un sous-dossier
   par voix avec son .pth et son .index.

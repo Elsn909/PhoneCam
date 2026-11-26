@@ -107,7 +107,7 @@ Dans la colonne de gauche : **Moteur** (qualité du visage), **Retouche** (forme
 </table>
 
 1. Page **Micro → Appareils** : choisis ton micro en **Entrée**, et une **Sortie** (avec [VB-Cable A+B](https://vb-audio.com/Cable/), les autres logiciels prennent **« CABLE-B Output »** comme micro).
-2. Page **Voix** : choisis une voix dans la **Bibliothèque** (Voix01 et Voix02 sont fournies), puis active **« Voix transformée »** (F2).
+2. Page **Voix** : choisis une voix dans la **Bibliothèque** (Voix01, Voix02 et Voix03 sont fournies), puis active **« Voix transformée »** (F2).
 3. Onglet **Voix** : hauteur (+12 = une octave au-dessus), timbre, ressemblance au modèle.
 
 Ta voix d'origine ne sort **jamais** quand le changeur est actif : en attendant le modèle, c'est le silence.
