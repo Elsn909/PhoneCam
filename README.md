@@ -243,17 +243,6 @@ Voix : RVC (Retrieval-based-Voice-Conversion-WebUI, MIT), RMVPE et HuBERT / Cont
 **Ne s'en servir qu'avec l'accord des personnes dont on utilise le visage ou la voix.**
 
 
-### Interface simplifiée
-
-Le Direct s'ouvre sur **Ton studio** : caméra, photo du visage, modèle de voix,
-hauteur, micro et sortie virtuelle. **Réglages avancés** permet de retrouver les
-pages détaillées, la recherche et les presets. Les réglages existants restent actifs.
-
-Un pack RVC ZIP peut être importé avec **Ajouter un pack de voix** : le modèle
-principal et son index sont ajoutés à `Voix/`. Les scripts présents dans un ZIP
-ne sont ni extraits ni exécutés. Les variantes d'entraînement ne sont pas toutes
-ajoutées à la liste. Les modèles HiFi-GAN RVC v1/v2 sont pris en charge.
-
 ### Prérequis et pilotes sur ce PC
 
 `Installer les pilotes.bat` vérifie OBS Virtual Camera, FFmpeg et VB-CABLE. Il installe

@@ -72,8 +72,6 @@ LIVE_TIPS = {
 
 
 class LiveSpace(QWidget):
-    simple_mode_changed = Signal(bool)
-
     def __init__(self, pipeline, server, settings, registry, toast):
         super().__init__()
         self.pipeline, self.server, self.settings, self.registry, self.toast = pipeline, server, settings, registry, toast
@@ -143,41 +141,15 @@ class LiveSpace(QWidget):
         self._page_mic()
         self._page_diag()
         self._controls()
-        self.simple_mode = not bool(settings.get("ui_advanced", False))
-        from ui_simple import SimpleDashboard
-        self.dashboard = SimpleDashboard(self)
-        self.home_index = self.rail.add("live", "Essentiel", self.dashboard)
-        home_button = self.rail.group.button(self.home_index)
-        self.rail.rail_lay.removeWidget(home_button)
-        self.rail.rail_lay.insertWidget(0, home_button)
-        self.rail.on_select = self._page_selected
-        self.set_simple_mode(self.simple_mode)
         self.fav.rebuild()
         self.rail.describe(LIVE_TIPS)
-        self.rail.select(self.home_index if self.simple_mode else int(settings.get("ui_tab", 1)) % self.rail.stack.count())
+        self.rail.select(int(settings.get("ui_tab", 1)) % self.rail.stack.count())
         if settings.get("source"):
             self._show_thumb(settings["source"])
         self._refresh_pairs()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.tick)
         self.timer.start(250)
-
-    def _page_selected(self, index):
-        if self.simple_mode and index != self.home_index:
-            self.set_simple_mode(False, select_home=False)
-
-    def set_simple_mode(self, simple, select_home=True):
-        self.simple_mode = bool(simple)
-        self.settings["ui_advanced"] = not self.simple_mode
-        self.rail.rail.setVisible(not self.simple_mode)
-        flow = self.bar.itemAt(0).widget()
-        if flow is not None:
-            flow.setVisible(not self.simple_mode)
-        if self.simple_mode and select_home:
-            self.rail.select(self.home_index)
-        if hasattr(self, "dashboard"):
-            self.dashboard.refresh()
-        self.simple_mode_changed.emit(self.simple_mode)
 
     # ------------------------------------------------------------ outils
     def form(self, panel, title, subtitle="", presets=None, builtin=None):
@@ -1362,8 +1334,6 @@ class LiveSpace(QWidget):
         if self.on_tick:
             self.on_tick()
         self.voice_page.tick()
-        if hasattr(self, "dashboard"):
-            self.dashboard.refresh()
         self.fx_tab.tick()
         if not self.view.has_image():
             self.view.update()

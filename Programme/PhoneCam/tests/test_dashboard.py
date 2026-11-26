@@ -9,11 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PySide6.QtWidgets import QApplication
 from phonecam import Pipeline
 from server import FrameSource
-from ui_kit import Registry, ValueBar
+from ui_kit import Registry
 from ui_live import LiveSpace
 
 
-class SimpleModeTests(unittest.TestCase):
+class DashboardTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
@@ -38,26 +38,15 @@ class SimpleModeTests(unittest.TestCase):
         self.live.timer.stop()
         self.addCleanup(self.live.close)
 
-    def test_simple_is_default_and_advanced_navigation_still_works(self):
-        self.assertTrue(self.live.simple_mode)
-        self.assertEqual(self.live.rail.current(), self.live.home_index)
+    def test_original_navigation_is_restored(self):
+        self.assertFalse(self.live.rail.rail.isHidden())
+        self.assertEqual(self.live.rail.current(), 1)
+        self.assertFalse(hasattr(self.live, 'dashboard'))
         self.live.rail.select(self.live.diag_index)
-        self.assertFalse(self.live.simple_mode)
-        self.live.set_simple_mode(True)
-        self.assertEqual(self.live.rail.current(), self.live.home_index)
+        self.assertEqual(self.live.rail.current(), self.live.diag_index)
 
-    def test_simple_toggles_and_pitch_reach_existing_controls(self):
-        dashboard = self.live.dashboard
-        self.assertEqual(len(dashboard.findChildren(ValueBar)), 1)
-        self.live.voice_page.on.setChecked(False)
-        dashboard.pitch.setValue(7)
-        self.assertEqual(self.pipe.voice.p['pitch'], 7)
-        self.live.swap_on.setChecked(False)
-        self.assertFalse(self.live.swap_on.isChecked())
-
-    def test_virtual_output_replaces_old_headphones_and_hint_matches(self):
+    def test_virtual_output_still_replaces_old_headphones(self):
         self.assertTrue(self.live.dev_out.currentText().startswith('CABLE Input'))
-        self.assertIn('CABLE Output', self.live.dashboard.routing.text())
 
 
 if __name__ == '__main__':
